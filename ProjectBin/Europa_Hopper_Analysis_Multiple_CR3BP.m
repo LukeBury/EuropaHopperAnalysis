@@ -6,7 +6,7 @@ function [dVelocity, dKE, T_impact, AngChange, Traveled, azColor, vH01, vH02, vH
 %%% Time Constraints
 ti = 0;
 tf = 50000;
-time = ti:.1:tf;
+time = ti:.1:tf; 
 
 %%% Jupiter Parameters
 uJ = 126672520; % km^3 / s^2
