@@ -7,7 +7,7 @@ addpath('ProjectBin')
 %%% Plot Switches
 % ------------------------------------------------------------------------
 % Plot Europa ECEF?
-ECEFplot = 1; % no = 0, yes = 1
+ECEFplot = 0; % no = 0, yes = 1
 scale1 = 8; % Plot Scale (limits = scale1 x E_radius)
 
 % Plot Europa ECI?
@@ -20,17 +20,17 @@ JCIplot = 0; % no = 0, yes = 1
 rECIplot = 0; % no = 0, yes = 1
 
 % Run movie?
-scale2 = 1.4;
-framespeed = 100; % Higher is faster
 runECEFMovie = 0; % no = 0, yes = 1
 runECIMovie = 0; % no = 0, yes = 1
+scale2 = 1.4;
+framespeed = 1; % Higher is faster
 % ------------------------------------------------------------------------
 %%% Setting Initial Values
 % ------------------------------------------------------------------------
 %%% Time Constraints
 ti = 0;
 tf = 520000; % sec
-time = ti:tf;
+time = ti:.1:tf;
 
 %%% Jupiter Parameters
 uJ = 126672520; % km^3 / s^2
@@ -43,7 +43,6 @@ E_a = 671100; % km
 uE = 3203.413216; % km^3 / s^2
 nE = sqrt(uJ / (E_a^3)); % rad/s
 % Circular Velocity
-% rbc = States(1,1:3)*uE/(uE + uJ);
 vE = sqrt(uJ/E_a); % km/s
 wE = [0; 0; nE]; % Rot. velocity (tidally locked)
 
@@ -60,7 +59,7 @@ lon1 = -45; % deg
 %%% Radial Velocity (Europa relative)
 % v_mag = 1.9; % km/s (-45, 0)
 % v_mag = 1.95; % km/s (-45,0)
-v_mag = 1.9; % km/s
+v_mag = 0.015; % km/s
 vH01 = (rH01/norm(rH01))*v_mag;
 % .013, -85 lon 0 lat
 % 
@@ -123,7 +122,7 @@ end
 v0_m = norm(States(1,4:6) - vE0)*1000; % m/s, ECI
 vf_m = norm(States(end,4:6) - vEf)*1000; % m/s, ECI
 dVelocity = vf_m - v0_m; % m/s
-KE0 = .5*v0_m^2;
+KE0 = .5*v0_m^2;8
 KEf = .5*vf_m^2;
 dKE = KEf - KE0; % J/kg .... m^2/s^2
 
@@ -154,6 +153,7 @@ elseif lat1 == -90
 end
 
 
+wE(3)*Times(end)*E_radius
 
 
 
@@ -176,11 +176,11 @@ if ECEFplot == 1
     %%% Plotting Hopper motion
     plot3(rECEF_Hopper(:,1),rECEF_Hopper(:,2),rECEF_Hopper(:,3),'m','linewidth',trackWidth);
     
-%     %%% Plotting Europa equator
-%     th = 0:.01:2*pi;
-%     x = E_radius * cos(th);
-%     y = E_radius * sin(th);
-%     plot(x, y,'b','linewidth',lineWidth);
+    %%% Plotting Europa equator
+    th = 0:.01:2*pi;
+    x = E_radius * cos(th);
+    y = E_radius * sin(th);
+    plot(x, y,'b','linewidth',lineWidth);
 
     %%% Coloring in Europa (2D)
     n = 5000;
@@ -250,11 +250,17 @@ if ECIplot == 1
         'linewidth',2,'color',[1 .5 0]);
     legend([jpECI], 'Jupiter-Pointing (Final)')
     
-    %%% Plotting Intial Velocity
+    %%% Plotting Intial ECI Velocity
     sc1 = 1000; % scalar
     quiver3(rH01(1),rH01(2),rH01(3),...
         sc1*(vH02(1)),sc1*(vH02(2)),sc1*(vH02(3)),...
         'linewidth',2,'color',[0 0 0])
+    
+    %%% Plotting Intial ECEF Velocity
+    sc1 = 1000; % scalar
+    quiver3(rH01(1),rH01(2),rH01(3),...
+        sc1*(vH01(1)),sc1*(vH01(2)),sc1*(vH01(3)),...
+        'linewidth',2,'color',[.7 .7 .7])
 
     %%% To Focus on Europa
     xlim([-E_radius*scale1 E_radius*scale1])
@@ -269,13 +275,13 @@ end
 % ------------------------------------------------------------------------
 %%% Plotting the Jupiter System (JCI)
 % ------------------------------------------------------------------------
+lineWidth = 3;
+trackWidth = 2;
 if JCIplot == 1
     figure
     hold all
     grid on
     axis equal
-    trackWidth = 2;
-    lineWidth = 3;
     PlotBoi3('X, km','Y, km','Z, km',16)
 
     %%% Plotting Hopper motion
@@ -354,6 +360,9 @@ if runECEFMovie == 1
             xlim([-E_radius*scale2 E_radius*scale2])
             ylim([-E_radius*scale2 E_radius*scale2])
             zlim([-E_radius*scale2 E_radius*scale2])
+%             xlim([min(rECEF_Hopper(:,1)) max(rECEF_Hopper(:,1))])
+%             ylim([min(rECEF_Hopper(:,2)) max(rECEF_Hopper(:,2))])
+%             zlim([-.01 .01])
 
             %%% Plotting Past
             plot3(rECEF_Hopper(1:i-1,1),rECEF_Hopper(1:i-1,2),rECEF_Hopper(1:i-1,3),'-m')

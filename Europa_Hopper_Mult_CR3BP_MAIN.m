@@ -156,11 +156,12 @@ if plotsOn == 1
     figure
     hold on
     lon_i = 1;
+    Equator_i = (size(latRange(1):ddeg:latRange(2),2)+1)/2;
     for rlon = lonRange(1):ddeg:lonRange(2)  
-        quiver3(0,0,rlon,vH02s(19,lon_i,1),vH02s(19,lon_i,2),vH02s(19,lon_i,3),'linewidth',2)
+        quiver3(0,0,rlon,vH02s(Equator_i,lon_i,1),vH02s(Equator_i,lon_i,2),vH02s(Equator_i,lon_i,3),'linewidth',2)
         lon_i = lon_i + 1;
     end
-    PlotBoi3('X','Y','Z',16)
+    PlotBoi3('X','Y','Equatorial Longitude',16)
     
 end
 
