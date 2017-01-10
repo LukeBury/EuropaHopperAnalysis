@@ -119,15 +119,16 @@ if plotsOn == 1
     figure
     hold all
     lat_i = 1; % index
+    E_radius = 1560.8; % km
     for rlat = latRange(1):ddeg:latRange(2)
         lon_i = 1; % index
         for rlon = lonRange(1):ddeg:lonRange(2)
-            plot3(rlon,rlat,dAng(lat_i,lon_i),'.','color',[azCols(lat_i,lon_i,1),azCols(lat_i,lon_i,2),azCols(lat_i,lon_i,3)],'markersize',40)
+            plot3(rlon,rlat,dAng(lat_i,lon_i)*(pi/180)*E_radius,'.','color',[azCols(lat_i,lon_i,1),azCols(lat_i,lon_i,2),azCols(lat_i,lon_i,3)],'markersize',40)
             lon_i = lon_i + 1;
         end
         lat_i = lat_i + 1;
     end
-    PlotBoi2('Longitude [°]','Latitude [°]',16);
+    PlotBoi3('Longitude [°]','Latitude [°]','Distance, km',16);
     dim = [.3 .6 .3 .3];
     str = 'Red = North | Green = East | Blue = South | Yellow = West';
     annotation('textbox',dim,'String',str,'FitBoxToText','on')
@@ -152,16 +153,16 @@ if plotsOn == 1
     axis equal
     PlotBoi3('X','Y','Z',16);
     
-    %%% Plotting directions of vH02 velocities (includes rotational effect)
-    figure
-    hold on
-    lon_i = 1;
-    Equator_i = (size(latRange(1):ddeg:latRange(2),2)+1)/2;
-    for rlon = lonRange(1):ddeg:lonRange(2)  
-        quiver3(0,0,rlon,vH02s(Equator_i,lon_i,1),vH02s(Equator_i,lon_i,2),vH02s(Equator_i,lon_i,3),'linewidth',2)
-        lon_i = lon_i + 1;
-    end
-    PlotBoi3('X','Y','Equatorial Longitude',16)
+%     %%% Plotting directions of vH02 velocities (includes rotational effect)
+%     figure
+%     hold on
+%     lon_i = 1;
+%     Equator_i = (size(latRange(1):ddeg:latRange(2),2)+1)/2;
+%     for rlon = lonRange(1):ddeg:lonRange(2)  
+%         quiver3(0,0,rlon,vH02s(Equator_i,lon_i,1),vH02s(Equator_i,lon_i,2),vH02s(Equator_i,lon_i,3),'linewidth',2)
+%         lon_i = lon_i + 1;
+%     end
+%     PlotBoi3('X','Y','Equatorial Longitude',16)
     
 end
 

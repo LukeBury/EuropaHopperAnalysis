@@ -7,7 +7,7 @@ addpath('ProjectBin')
 %%% Plot Switches
 % ------------------------------------------------------------------------
 % Plot Europa ECEF?
-ECEFplot = 0; % no = 0, yes = 1
+ECEFplot = 1; % no = 0, yes = 1
 scale1 = 8; % Plot Scale (limits = scale1 x E_radius)
 
 % Plot Europa ECI?
@@ -16,8 +16,11 @@ ECIplot = 1; % no = 0, yes = 1
 % Plot Jupiter System Inertial?
 JCIplot = 0; % no = 0, yes = 1
 
-% Plot ECI distance vs time?
+% Plot ECI distance vs Time?
 rECIplot = 0; % no = 0, yes = 1
+
+% Plot East-ness vs Time?
+EquatorialEastPlot = 1; % no = 0, yes = 1
 
 % Run movie?
 runECEFMovie = 0; % no = 0, yes = 1
@@ -59,7 +62,7 @@ lon1 = -45; % deg
 %%% Radial Velocity (Europa relative)
 % v_mag = 1.9; % km/s (-45, 0)
 % v_mag = 1.95; % km/s (-45,0)
-v_mag = 0.015; % km/s
+v_mag = 0.1; % km/s
 vH01 = (rH01/norm(rH01))*v_mag;
 % .013, -85 lon 0 lat
 % 
@@ -71,7 +74,7 @@ vH01 = (rH01/norm(rH01))*v_mag;
 
 %%% Correcting Hopper Velocity 
 vH02 = vH01 + cross(wE,rH01); % Adding rotational velocity component
-vH03 = vH02 + vE0; % Making velocity relative to Jupiter
+vH03 = vH02 + vE0; % Making velocity relative to Jupiter (adding Europa v)
 %%% Correcting Hopper Position
 rH02 = rH01 + rE0; % Making position relative to Jupiter
 
@@ -122,7 +125,7 @@ end
 v0_m = norm(States(1,4:6) - vE0)*1000; % m/s, ECI
 vf_m = norm(States(end,4:6) - vEf)*1000; % m/s, ECI
 dVelocity = vf_m - v0_m; % m/s
-KE0 = .5*v0_m^2;8
+KE0 = .5*v0_m^2;
 KEf = .5*vf_m^2;
 dKE = KEf - KE0; % J/kg .... m^2/s^2
 
@@ -152,8 +155,6 @@ elseif lat1 == -90
     azColor = [1 0 0]; % Can only go north...
 end
 
-
-wE(3)*Times(end)*E_radius
 
 
 
@@ -256,16 +257,25 @@ if ECIplot == 1
         sc1*(vH02(1)),sc1*(vH02(2)),sc1*(vH02(3)),...
         'linewidth',2,'color',[0 0 0])
     
-    %%% Plotting Intial ECEF Velocity
-    sc1 = 1000; % scalar
-    quiver3(rH01(1),rH01(2),rH01(3),...
-        sc1*(vH01(1)),sc1*(vH01(2)),sc1*(vH01(3)),...
-        'linewidth',2,'color',[.7 .7 .7])
+%     %%% Plotting Intial ECEF Velocity
+%     sc1 = 1000; % scalar
+%     quiver3(rH01(1),rH01(2),rH01(3),...
+%         sc1*(vH01(1)),sc1*(vH01(2)),sc1*(vH01(3)),...
+%         'linewidth',2,'color',[.7 .7 .7])
+
+    %%% Plotting Europa Rotation Vectors
+    quiver3(0, 0, 0, 2*rH01(1), 2*rH01(2), 2*rH01(3));
+    new_rH01 = R3(rH01,wE(3)*Times(end))';
+    quiver3(0, 0, 0, 2*new_rH01(1), 2*new_rH01(2), 2*new_rH01(3));
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ^ This is experimental for equator  only
 
     %%% To Focus on Europa
-    xlim([-E_radius*scale1 E_radius*scale1])
-    ylim([-E_radius*scale1 E_radius*scale1])
-    zlim([-E_radius*scale1 E_radius*scale1])
+%     xlim([-E_radius*scale1 E_radius*scale1])
+%     ylim([-E_radius*scale1 E_radius*scale1])
+%     zlim([-E_radius*scale1 E_radius*scale1])
+    xlim([min(rECI_Hopper(:,1))-.1 max(rECI_Hopper(:,1))+.1])
+    ylim([min(rECI_Hopper(:,2))-.1 max(rECI_Hopper(:,2))+.1])
+    zlim([-.1 .1])
     
     %%% Frame
     title('ECI')
@@ -339,6 +349,42 @@ plot(Times,ones(size(Times)).*E_radius,'--b','linewidth',1.5)
 plot(Times,arrayfun(@(x) norm(rECI_Hopper(x,:)), 1:size(rECI_Hopper,1))','m','linewidth',trackWidth)
 PlotBoi2('Time, sec','Distance to Europa Center, km',16)
 legend('Europa Mean Radius')
+end
+
+% ------------------------------------------------------------------------
+%%% East-ness vs Time
+% ------------------------------------------------------------------------
+if EquatorialEastPlot == 1
+
+for k = 1:size(rECEF_Hopper,1)
+    th = nE*Times(k); % How far Europa has rotated, rad
+%     liftoffVec = R3((rECEF_Hopper(1,:)./norm(rECEF_Hopper(1,:))),th)'; % position of takeoff(starting) point, km
+    liftoffVec = (rECEF_Hopper(1,:)./norm(rECEF_Hopper(1,:)));
+    relPos = rECEF_Hopper(k,:) - rECEF_Hopper(1,:); % relative position of hopper to starting point, km
+    EastVec = cross(liftoffVec,[0,0,-1]); % vector pointing local east, km
+    EastUVec = EastVec./norm(EastVec); % local east unit vector, km
+    EastPos(k) = dot(EastUVec,relPos); % component of relative position in the East direction
+end
+
+EastVel = diff(EastPos);
+EastAcc = diff(EastVel);
+clear relPos
+figure
+subplot(3,1,1)
+hold all
+plot(Times, EastPos,'.')
+plot([0 Times(end)],[0 0],'--r')
+PlotBoi2('Time', 'East Pos, km', 16)
+subplot(3,1,2)
+hold all
+plot(Times(1:end-2), EastVel(1:end-1),'.')
+plot([0 Times(end)],[0 0],'--r')
+PlotBoi2('Time', 'East Vel, km/s', 16)
+subplot(3,1,3)
+hold all
+plot(Times(1:end-3), EastAcc(1:end-1),'.')
+plot([0 Times(end)],[0 0],'--r')
+PlotBoi2('Time', 'East Acc, km/s^2', 16)
 end
 
 % ------------------------------------------------------------------------
