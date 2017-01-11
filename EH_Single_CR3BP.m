@@ -89,7 +89,7 @@ tol = 1E-13;
 options = odeset('Events',@impactEvent_CR3BP,'RelTol',tol,'AbsTol',tol);
 
 %%% Propagating the State
-[Times,States] = ode45(@EJ_EOMIntegrator_CR3BP,time,X0,options,E_radius,uE,uJ,nE,E_a);
+[Times,States] = ode45(@EH_NumIntegrator_CR3BP,time,X0,options,E_radius,uE,uJ,nE,E_a);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
