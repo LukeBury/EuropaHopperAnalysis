@@ -58,13 +58,13 @@ T_impact = Times(end);
 r_Europa = zeros(size(Times,1),3);
 for k = 1:size(Times,1)
     ta = nE * Times(k); % rads
-    r_Europa(k,:) = R3(rE0,ta)'; % km
+    r_Europa(k,:) = R3(rE0,ta); % km
 end
 
 %%% Final States
 rEf = r_Europa(end,:); % km
 taf = nE * Times(end); % rad
-vEf = R3(vE0,taf)'; % km/s
+vEf = R3(vE0,taf); % km/s
 
 % ------------------------------------------------------------------------
 %%% Calculating Hopper Initial and Final Energies in ECI
@@ -84,7 +84,7 @@ Pos0 = States(1,1:3) - rE0; % ECI / ECEF
 Posf = States(end,1:3) - rEf; % ECI
 % Rotating Final Position
 theta = -nE * Times(end);
-Posf = R3(Posf,theta)'; % ECEF
+Posf = R3(Posf,theta); % ECEF
 
 %%% Angle change and surface distance traveled
 AngChange = atan2(norm(cross(Pos0,Posf)),dot(Pos0,Posf))*180/pi; % deg

@@ -7,17 +7,17 @@ addpath('ProjectBin')
 %%% Plot Switches
 % ------------------------------------------------------------------------
 % Plot Europa ECEF?
-ECEFplot = 0; % no = 0, yes = 1
+ECEFplot = 1; % no = 0, yes = 1
 scale1 = 8; % Plot Scale (limits = scale1 x E_radius)
 
 % Plot Europa ECI?
-ECIplot = 0; % no = 0, yes = 1
+ECIplot = 1; % no = 0, yes = 1
 
 % Plot Jupiter System Inertial?
-JCIplot = 0; % no = 0, yes = 1
+JCIplot = 1; % no = 0, yes = 1
 
 % Plot ECI distance vs Time?
-rECIplot = 0; % no = 0, yes = 1
+rECIplot = 1; % no = 0, yes = 1
 
 % Plot East-ness vs Time?
 EquatorialEastPlot = 1; % no = 0, yes = 1
@@ -102,13 +102,13 @@ options = odeset('Events',@impactEvent_CR3BP,'RelTol',tol,'AbsTol',tol);
 r_Europa = zeros(size(Times,1),3);
 for k = 1:size(Times,1)
     ta = nE * Times(k); % rads
-    r_Europa(k,:) = R3(rE0,ta)'; % km, JCI Europa position vectors
+    r_Europa(k,:) = R3(rE0,ta); % km, JCI Europa position vectors
 end
 
 %%% Assigning final states of Europa (for simplicity)
 rEf = r_Europa(end,:); % km
 taf = nE * Times(end); % rad
-vEf = R3(vE0,taf)'; % km/s
+vEf = R3(vE0,taf); % km/s
 
 % ------------------------------------------------------------------------
 %%% Calculating rECI positions
@@ -142,7 +142,7 @@ Pos0 = States(1,1:3) - rE0; % ECI / ECEF
 Posf = States(end,1:3) - rEf; % ECI
 % Rotating Final Position into ECEF
 theta = -nE * Times(end);
-Posf = R3(Posf,theta)'; % ECEF
+Posf = R3(Posf,theta); % ECEF
 
 %%% Angle change and surface distance traveled
 AngChange = atan2(norm(cross(Pos0,Posf)),dot(Pos0,Posf))*180/pi; % deg
@@ -272,7 +272,7 @@ if ECIplot == 1
 
     %%% Plotting Europa Rotation Vectors
     quiver3(0, 0, 0, 2*rH01(1), 2*rH01(2), 2*rH01(3));
-    new_rH01 = R3(rH01,wE(3)*Times(end))';
+    new_rH01 = R3(rH01,wE(3)*Times(end));
     quiver3(0, 0, 0, 2*new_rH01(1), 2*new_rH01(2), 2*new_rH01(3));
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ^ This is experimental for equator  only
 
