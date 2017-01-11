@@ -4,7 +4,7 @@
 function [value, isterminal, direction] = impactEvent(t,Y,E_radius,uE,uJ,nE,E_a)
 %%% Creating Europa Position
 ta = nE*t; % rads
-rE = [E_a, 0, 0]; % km
+rE = [E_a; 0; 0]; % km
 rE = R3(rE,ta); % km
 
 %%% Unpack the Hopper position vector

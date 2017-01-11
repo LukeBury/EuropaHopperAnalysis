@@ -6,7 +6,7 @@ dY = zeros(6,1);
 
 %%% Creating Europa Position (JCI)
 ta = nE*t; % rads
-rE = [E_a, 0, 0]; % km
+rE = [E_a; 0; 0]; % km
 rE = R3(rE,ta);
 
 %%% Unpack the Hopper state vector (JCI)

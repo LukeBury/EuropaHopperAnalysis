@@ -7,11 +7,11 @@ addpath('ProjectBin')
 %%% Plot Switches
 % ------------------------------------------------------------------------
 % Plot Europa ECEF?
-ECEFplot = 1; % no = 0, yes = 1
+ECEFplot = 0; % no = 0, yes = 1
 scale1 = 8; % Plot Scale (limits = scale1 x E_radius)
 
 % Plot Europa ECI?
-ECIplot = 1; % no = 0, yes = 1
+ECIplot = 0; % no = 0, yes = 1
 
 % Plot Jupiter System Inertial?
 JCIplot = 0; % no = 0, yes = 1
@@ -55,8 +55,8 @@ vE0 = [0, vE, 0]; % km
 
 %%% Initial Hopper State (Jupiter-Centric) 
 % Surface Position (latitude / longitude)
-lat1 = 0; % deg
-lon1 = -45; % deg
+lat1 = 0; % deg (-90:90)
+lon1 = -45; % deg (-180:180)
 [rH01] = latlon2surfECEF(lat1, lon1, E_radius); % km
 
 %%% Radial Velocity (Europa relative)
@@ -91,6 +91,11 @@ options = odeset('Events',@impactEvent_CR3BP,'RelTol',tol,'AbsTol',tol);
 %%% Propagating the State
 [Times,States] = ode45(@EJ_EOMIntegrator_CR3BP,time,X0,options,E_radius,uE,uJ,nE,E_a);
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% Post-Integration Calculations
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % ------------------------------------------------------------------------
 %%% Calculating Europa states
 % ------------------------------------------------------------------------
@@ -155,8 +160,10 @@ elseif lat1 == -90
     azColor = [1 0 0]; % Can only go north...
 end
 
-
-
+% ------------------------------------------------------------------------
+%%% Calculating ECEF hopper accelerations
+% ------------------------------------------------------------------------
+% aECEF_Hopper = 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -355,14 +362,13 @@ end
 %%% East-ness vs Time
 % ------------------------------------------------------------------------
 if EquatorialEastPlot == 1
-
+    EastPos = zeros(size(States,1),1);
+    
 for k = 1:size(rECEF_Hopper,1)
     th = nE*Times(k); % How far Europa has rotated, rad
-%     liftoffVec = R3((rECEF_Hopper(1,:)./norm(rECEF_Hopper(1,:))),th)'; % position of takeoff(starting) point, km
-    liftoffVec = (rECEF_Hopper(1,:)./norm(rECEF_Hopper(1,:)));
     relPos = rECEF_Hopper(k,:) - rECEF_Hopper(1,:); % relative position of hopper to starting point, km
-    EastVec = cross(liftoffVec,[0,0,-1]); % vector pointing local east, km
-    EastUVec = EastVec./norm(EastVec); % local east unit vector, km
+    liftoffUVec = (rECEF_Hopper(1,:)./norm(rECEF_Hopper(1,:))); % Uvec to liftoff spot in ECEF
+    EastUVec = cross(liftoffUVec,[0,0,-1]); % unit vector pointing local east, km
     EastPos(k) = dot(EastUVec,relPos); % component of relative position in the East direction
 end
 
