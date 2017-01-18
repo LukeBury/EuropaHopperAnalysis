@@ -11,10 +11,10 @@ ECEFplot = 0; % no = 0, yes = 1
 scale1 = 8; % Plot Scale (limits = scale1 x E_radius)
 
 % Plot Europa ECI?
-ECIplot = 0; % no = 0, yes = 1
+ECIplot = 1; % no = 0, yes = 1
 
 % Plot Jupiter System Inertial?
-JCIplot = 1; % no = 0, yes = 1
+JCIplot = 0; % no = 0, yes = 1
 
 % Plot ECI distance vs Time?
 rECIplot = 0; % no = 0, yes = 1
@@ -310,18 +310,18 @@ if ECIplot == 1
 %         'linewidth',2,'color',[.7 .7 .7])
 
     %%% Plotting Europa Rotation Vectors
-    quiver3(0, 0, 0, 2*rH01(1), 2*rH01(2), 2*rH01(3));
-    new_rH01 = R3(rH01,wE(3)*Times(end));
-    quiver3(0, 0, 0, 2*new_rH01(1), 2*new_rH01(2), 2*new_rH01(3));
+%     quiver3(0, 0, 0, 2*rH01(1), 2*rH01(2), 2*rH01(3)); % Vector through starting location
+%     new_rH01 = R3(rH01,wE(3)*Times(end));
+%     quiver3(0, 0, 0, 2*new_rH01(1), 2*new_rH01(2), 2*new_rH01(3)); % Vector through same location but rotated in space
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ^ This is experimental for equator  only
 
     %%% To Focus on Europa
-%     xlim([-E_radius*scale1 E_radius*scale1])
-%     ylim([-E_radius*scale1 E_radius*scale1])
-%     zlim([-E_radius*scale1 E_radius*scale1])
-    xlim([min(rECI_Hopper(:,1))-.1 max(rECI_Hopper(:,1))+.1])
-    ylim([min(rECI_Hopper(:,2))-.1 max(rECI_Hopper(:,2))+.1])
-    zlim([-.1 .1])
+    xlim([-E_radius*scale1 E_radius*scale1])
+    ylim([-E_radius*scale1 E_radius*scale1])
+    zlim([-E_radius*scale1 E_radius*scale1])
+%     xlim([min(rECI_Hopper(:,1))-.1 max(rECI_Hopper(:,1))+.1])
+%     ylim([min(rECI_Hopper(:,2))-.1 max(rECI_Hopper(:,2))+.1])
+%     zlim([-.1 .1])
     
     %%% Frame
     title('ECI')
@@ -455,6 +455,13 @@ title('Analytically Calculated Acceleration')
 figure
 plot(Times, EastAT)
 title('Eastern Tidal Acceleration')
+
+%%% Plotting all of the above but not restricted to East
+figure
+hold all
+plot3(aECEF_Hopper(:,1),aECEF_Hopper(:,2),aECEF_Hopper(:,3))
+% plot3(aTs(:,1),aTs(:,2),aTs(:,3))
+% legend('Analytical','Tidal')
 
 end
 
