@@ -11,7 +11,7 @@ ECEFplot = 0; % no = 0, yes = 1
 scale1 = 8; % Plot Scale (limits = scale1 x E_radius)
 
 % Plot Europa ECI?
-ECIplot = 1; % no = 0, yes = 1
+ECIplot = 0; % no = 0, yes = 1
 
 % Plot Jupiter System Inertial?
 JCIplot = 0; % no = 0, yes = 1
@@ -171,19 +171,13 @@ aECEF_Hopper = zeros(size(States,1),3); % km/s^2
 
 %%% Calculating ECI and ECEF Hopper accelerations at each time step
 for k = 1:size(States,1)
-%     aECI_Hopper(k,:) = (-uJ/(norm(States(k,1:3))^3))*States(k,1:3) + (-uE/(norm(rECI_Hopper(k,:))^3))*rECI_Hopper(k,:); % km/s^2
-%     vB = States(k,4:6) - cross(wE,rECEF_Hopper(k,:)); % km/s
-%     aECEF_Hopper(k,:) = aECI_Hopper(k,:) - 2*cross(wE,vB) - cross(wE,cross(wE,rECEF_Hopper(k,:))); % km/s^2
-    
-    
     aECI_Hopper(k,:) = (-uJ/(norm(States(k,1:3))^3))*States(k,1:3) + (-uE/(norm(rECI_Hopper(k,:))^3))*rECI_Hopper(k,:); % km/s^2
     vB = States(k,4:6) - v_Europa(k,:) - cross(wE,rECEF_Hopper(k,:)); % km/s
     aECEF_Hopper(k,:) = aECI_Hopper(k,:) - 2*cross(wE,vB) - cross(wE,cross(wE,rECEF_Hopper(k,:))); % km/s^2
-
 end
 
 % ------------------------------------------------------------------------
-%%% Calculating Tidal Accelerations
+%%% Calculating Initial Tidal Accelerations
 % ------------------------------------------------------------------------
 %%% Finding Acceleration Vectors
 rHJ = rH01 + rE0;
@@ -196,6 +190,56 @@ aT = aHJ - aEJ;
 %%% Theoretical Distance Traveled for Tangential Tidal Acceleration
 d_TanTidal = .5*norm(aT)*Times(end)*Times(end)*1000;
 
+% ------------------------------------------------------------------------
+%%% East Calculations
+% ------------------------------------------------------------------------
+relPos= zeros(size(States,1),3);
+EastPos = zeros(size(States,1),1);
+EastAnalyticalAccel = zeros(size(States,1),1);
+aTs = zeros(size(States,1),3);
+EastAT = zeros(size(States,1),1);
+EastUVec = zeros(size(States,1),3);
+
+liftoffUVec = (rECEF_Hopper(1,:)./norm(rECEF_Hopper(1,:))); % Uvec to liftoff spot in ECEF
+EastUVec(1,:) = cross(liftoffUVec,[0,0,-1]); % unit vector pointing local east from liftoff spot, km
+
+for k = 1:size(rECEF_Hopper,1)
+    %%% Finding Eastern Unit Vector
+    EastUVec(k,:) = cross(rECEF_Hopper(k,:)./norm(rECEF_Hopper(k,:)), [0,0,-1]);
+    
+    %%% Numerical East
+    th = nE*Times(k); % How far Europa has rotated, rad
+    relPos(k,:) = rECEF_Hopper(k,:) - rECEF_Hopper(1,:); % relative position of hopper to starting point, km
+    EastPos(k) = dot(EastUVec(k,:),relPos(k,:)); % component of relative position in the East direction
+    
+    %%% Analytical East
+    EastAnalyticalAccel(k) = dot(EastUVec(k,:),aECEF_Hopper(k,:));
+    
+    %%% Tidal East
+    aHJ = (-uJ/(norm(States(k,1:3))^3))*States(k,1:3); % Hopper --> Jupiter, km/s^2
+    aEJ = (-uJ/(norm(r_Europa(k,:))^3))*r_Europa(k,:); % Europa --> Jupiter, km/s^2
+    aTs(k,:) = R3(aHJ - aEJ,-th); % Tidal Accelerations in ECI frame
+    EastAT(k) = dot(EastUVec(k,:),aTs(k,:));
+end
+
+%%% Finding Numerical Acceleration (from integration)
+relVel = diff(relPos);
+relAcc = diff(relVel);
+EastVel = diff(EastPos);
+EastAcc = diff(EastVel);
+
+% figure
+% plot3(relAcc(:,1),relAcc(:,2),relAcc(:,3))
+% title('relAcc2')
+% PlotBoi3('X','Y','Z',16)
+% figure
+% plot3(aECEF_Hopper(:,1),aECEF_Hopper(:,2),aECEF_Hopper(:,3))
+% title('aECEF_Hopper')
+% PlotBoi3('X','Y','Z',16)
+% figure
+% plot3(aTs(:,1),aTs(:,2),aTs(:,3))
+% title('aTs')
+% PlotBoi3('X','Y','Z',16)
 
 
 
@@ -204,11 +248,16 @@ d_TanTidal = .5*norm(aT)*Times(end)*Times(end)*1000;
 
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Plotting
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % ------------------------------------------------------------------------
 %%% Plotting the Europa-Centered-Europa-Fixed Frame (ECEF)
 % ------------------------------------------------------------------------
@@ -401,33 +450,7 @@ end
 %%% East-ness vs Time
 % ------------------------------------------------------------------------
 if EquatorialEastPlot == 1
-    EastPos = zeros(size(States,1),1);
-    EastAnalyticalAccel = zeros(size(States,1),1);
-    aTs = zeros(size(States,1),3);
-    EastAT = zeros(size(States,1),1);
-    
-    liftoffUVec = (rECEF_Hopper(1,:)./norm(rECEF_Hopper(1,:))); % Uvec to liftoff spot in ECEF
-    EastUVec = cross(liftoffUVec,[0,0,-1]); % unit vector pointing local east from liftoff spot, km
-for k = 1:size(rECEF_Hopper,1)
-    %%% Numerical East
-    th = nE*Times(k); % How far Europa has rotated, rad
-    relPos = rECEF_Hopper(k,:) - rECEF_Hopper(1,:); % relative position of hopper to starting point, km
-    EastPos(k) = dot(EastUVec,relPos); % component of relative position in the East direction
-    
-    %%% Analytical East
-    EastAnalyticalAccel(k) = dot(EastUVec,aECEF_Hopper(k,:));
-    
-    %%% Tidal East
-    aHJ = (-uJ/(norm(States(k,1:3))^3))*States(k,1:3); % Hopper --> Jupiter, km/s^2
-    aEJ = (-uJ/(norm(r_Europa(k,:))^3))*r_Europa(k,:); % Europa --> Jupiter, km/s^2
-    aTs(k,:) = R3(aHJ - aEJ,-th); % Tidal Accelerations in ECI frame
-    EastAT(k) = dot(EastUVec,aTs(k,:));
-end
-
 %%% Plotting Numerical Eastern Position, Velocity, and Acceleration
-EastVel = diff(EastPos);
-EastAcc = diff(EastVel);
-clear relPos
 figure
 subplot(3,1,1)
 title('Data from Numerical Integration')
@@ -448,20 +471,17 @@ PlotBoi2('Time', 'East Acc, km/s^2', 16)
 
 %%% Plotting Analytical Acceleration
 figure
+hold on
 plot(Times, EastAnalyticalAccel)
-title('Analytically Calculated Acceleration')
+plot(Times(1),EastAnalyticalAccel(1),'o','markersize',10)
+title('Analytically Calculated Eastern Acceleration')
+PlotBoi2('Time, sec','Eastern Acceleration, km/s^2',16)
 
 %%% Plotting Tidal Acceleration
 figure
 plot(Times, EastAT)
 title('Eastern Tidal Acceleration')
-
-%%% Plotting all of the above but not restricted to East
-figure
-hold all
-plot3(aECEF_Hopper(:,1),aECEF_Hopper(:,2),aECEF_Hopper(:,3))
-% plot3(aTs(:,1),aTs(:,2),aTs(:,3))
-% legend('Analytical','Tidal')
+PlotBoi2('Times, sec','Eastern Tidal Acceleration, km/s^2',16)
 
 end
 

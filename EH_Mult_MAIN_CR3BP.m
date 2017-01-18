@@ -1,6 +1,6 @@
 clear
 clc
-% close all
+close all
 addpath('ProjectBin')
 tic
 
