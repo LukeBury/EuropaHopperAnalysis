@@ -165,16 +165,37 @@ end
 % ------------------------------------------------------------------------
 %%% Calculating ECEF Hopper Accelerations
 % ------------------------------------------------------------------------
+% %%% Initializing ECI and ECEF acceleration matrices
+% aECI_Hopper = zeros(size(States,1),3); % km/s^2
+% aECEF_Hopper = zeros(size(States,1),3); % km/s^2
+% 
+% %%% Calculating ECI and ECEF Hopper accelerations at each time step
+% for k = 1:size(States,1)
+%     aECI_Hopper(k,:) = (-uJ/(norm(States(k,1:3))^3))*States(k,1:3) + (-uE/(norm(rECI_Hopper(k,:))^3))*rECI_Hopper(k,:); % km/s^2
+%     vB = States(k,4:6) - v_Europa(k,:) - cross(wE,rECEF_Hopper(k,:)); % km/s
+%     aECEF_Hopper(k,:) = aECI_Hopper(k,:) - 2*cross(wE,vB) - cross(wE,cross(wE,rECEF_Hopper(k,:))); % km/s^2
+% end
+
 %%% Initializing ECI and ECEF acceleration matrices
 aECI_Hopper = zeros(size(States,1),3); % km/s^2
 aECEF_Hopper = zeros(size(States,1),3); % km/s^2
 
 %%% Calculating ECI and ECEF Hopper accelerations at each time step
-for k = 1:size(States,1)
+for k = 1:length(Times)
+    th = nE*Times(k); % How far Europa has rotated, rad
+    
+    %%% Determining Inertial Accelerations in Body Frame
     aECI_Hopper(k,:) = (-uJ/(norm(States(k,1:3))^3))*States(k,1:3) + (-uE/(norm(rECI_Hopper(k,:))^3))*rECI_Hopper(k,:); % km/s^2
-    vB = States(k,4:6) - v_Europa(k,:) - cross(wE,rECEF_Hopper(k,:)); % km/s
-    aECEF_Hopper(k,:) = aECI_Hopper(k,:) - 2*cross(wE,vB) - cross(wE,cross(wE,rECEF_Hopper(k,:))); % km/s^2
+    aECEF_B = R3(aECI_Hopper(k,:),-th); % km/s^2
+    
+    %%% Determining Inertial Velocities in Body Frame
+    vB = R3(States(k,4:6)-v_Europa(k,:),-th) - cross(wE,rECEF_Hopper(k,:)); % km/s
+    
+    %%% Determining Body Frame Acceleration
+    aECEF_Hopper(k,:) = aECEF_B - 2*cross(wE,vB) - cross(wE,cross(wE,rECEF_Hopper(k,:))); % km/s^2
+    
 end
+
 
 % ------------------------------------------------------------------------
 %%% Calculating Initial Tidal Accelerations
@@ -210,7 +231,6 @@ for k = 1:size(rECEF_Hopper,1)
     %%% Numerical East
     th = nE*Times(k); % How far Europa has rotated, rad
     relPos(k,:) = rECEF_Hopper(k,:) - rECEF_Hopper(1,:); % relative position of hopper to starting point, km
-    EastPos(k) = dot(EastUVec(k,:),relPos(k,:)); % component of relative position in the East direction
     
     %%% Analytical East
     EastAnalyticalAccel(k) = dot(EastUVec(k,:),aECEF_Hopper(k,:));
@@ -220,18 +240,37 @@ for k = 1:size(rECEF_Hopper,1)
     aEJ = (-uJ/(norm(r_Europa(k,:))^3))*r_Europa(k,:); % Europa --> Jupiter, km/s^2
     aTs(k,:) = R3(aHJ - aEJ,-th); % Tidal Accelerations in ECI frame
     EastAT(k) = dot(EastUVec(k,:),aTs(k,:));
+    
 end
 
 %%% Finding Numerical Acceleration (from integration)
-relVel = diff(relPos);
-relAcc = diff(relVel);
-EastVel = diff(EastPos);
-EastAcc = diff(EastVel);
+relVel = [diff(relPos(:,1)) diff(relPos(:,2)) diff(relPos(:,3))]; % km/s, ECEF
+relAcc = [diff(relVel(:,1)) diff(relVel(:,2)) diff(relVel(:,3))]; % km/s^2, ECEF
 
-% figure
-% plot3(relAcc(:,1),relAcc(:,2),relAcc(:,3))
-% title('relAcc2')
-% PlotBoi3('X','Y','Z',16)
+EastPos = zeros(length(Times),1);
+EastVel = zeros(length(Times)-1,1);
+EastAcc = zeros(length(Times)-2,1);
+
+for k = 1:length(Times)
+    EastPos(k) = dot(EastUVec(k,:),relPos(k,:)); % component of relative position in the East direction
+    if k < length(Times)
+        EastVel(k) = dot(EastUVec(k,:),relVel(k,:));
+    end
+    if k < (length(Times)-1)
+        EastAcc(k) = dot(EastUVec(k,:),relAcc(k,:));
+    end
+end
+
+figure
+plot3(relAcc(1:end-1,1),relAcc(1:end-1,2),relAcc(1:end-1,3))
+title('Numerical Body Acceleration')
+PlotBoi3('X','Y','Z',16)
+view(0,90)
+figure
+plot3(aECEF_Hopper(:,1),aECEF_Hopper(:,2),aECEF_Hopper(:,3))
+title('Analytical Body Acceleration')
+PlotBoi3('X','Y','Z',16)
+view(0,90)
 % figure
 % plot3(aECEF_Hopper(:,1),aECEF_Hopper(:,2),aECEF_Hopper(:,3))
 % title('aECEF_Hopper')
@@ -477,11 +516,11 @@ plot(Times(1),EastAnalyticalAccel(1),'o','markersize',10)
 title('Analytically Calculated Eastern Acceleration')
 PlotBoi2('Time, sec','Eastern Acceleration, km/s^2',16)
 
-%%% Plotting Tidal Acceleration
-figure
-plot(Times, EastAT)
-title('Eastern Tidal Acceleration')
-PlotBoi2('Times, sec','Eastern Tidal Acceleration, km/s^2',16)
+% %%% Plotting Tidal Acceleration
+% figure
+% plot(Times, EastAT)
+% title('Eastern Tidal Acceleration')
+% PlotBoi2('Times, sec','Eastern Tidal Acceleration, km/s^2',16)
 
 end
 
