@@ -20,7 +20,7 @@ JCIplot = 0; % no = 0, yes = 1
 rECIplot = 0; % no = 0, yes = 1
 
 % Plot East-ness vs Time?
-EquatorialEastPlot = 1; % no = 0, yes = 1
+EquatorialEastPlot = 0; % no = 0, yes = 1
 
 % Run movie?
 runECEFMovie = 0; % no = 0, yes = 1
@@ -33,7 +33,8 @@ framespeed = 1; % Higher is faster
 %%% Time Constraints
 ti = 0;
 tf = 520000; % sec
-time = ti:.1:tf;
+dt = .1;
+time = ti:dt:tf;
 
 %%% Jupiter Parameters
 uJ = 126672520; % km^3 / s^2
@@ -181,21 +182,21 @@ aECI_Hopper = zeros(size(States,1),3); % km/s^2
 aECEF_Hopper = zeros(size(States,1),3); % km/s^2
 
 %%% Calculating ECI and ECEF Hopper accelerations at each time step
-for k = 1:length(Times)
-    th = nE*Times(k); % How far Europa has rotated, rad
-    
+for k = 1:length(Times)        
     %%% Determining Inertial Accelerations in Body Frame
     aECI_Hopper(k,:) = (-uJ/(norm(States(k,1:3))^3))*States(k,1:3) + (-uE/(norm(rECI_Hopper(k,:))^3))*rECI_Hopper(k,:); % km/s^2
-    aECEF_B = R3(aECI_Hopper(k,:),-th); % km/s^2
+%     aECEF_B(k,:) = R3(aECI_Hopper(k,:),-th); % km/s^2
     
     %%% Determining Inertial Velocities in Body Frame
-    vB = R3(States(k,4:6)-v_Europa(k,:),-th) - cross(wE,rECEF_Hopper(k,:)); % km/s
+    vB = States(k,4:6) - cross(wE,rECEF_Hopper(k,:)); % km/s
     
     %%% Determining Body Frame Acceleration
-    aECEF_Hopper(k,:) = aECEF_B - 2*cross(wE,vB) - cross(wE,cross(wE,rECEF_Hopper(k,:))); % km/s^2
+    aECEF_Hopper(k,:) = aECI_Hopper(k,:) - 2*cross(wE',vB) - cross(wE',cross(wE',rECEF_Hopper(k,:))); % km/s^2
     
 end
 
+vAnalytical = cumtrapz(aECEF_Hopper(:,:)) * dt + vH01;
+rAnalytical = cumtrapz(vAnalytical(:,:)) * dt + rH01;
 
 % ------------------------------------------------------------------------
 %%% Calculating Initial Tidal Accelerations
@@ -244,8 +245,9 @@ for k = 1:size(rECEF_Hopper,1)
 end
 
 %%% Finding Numerical Acceleration (from integration)
-relVel = [diff(relPos(:,1)) diff(relPos(:,2)) diff(relPos(:,3))]; % km/s, ECEF
-relAcc = [diff(relVel(:,1)) diff(relVel(:,2)) diff(relVel(:,3))]; % km/s^2, ECEF
+relVel = [diff(rECEF_Hopper(:,1)) diff(rECEF_Hopper(:,2)) diff(rECEF_Hopper(:,3))].*(1/dt); % km/s, ECEF
+% relVel = [diff(relPos(:,1)) diff(relPos(:,2)) diff(relPos(:,3))].*(1/dt); % km/s, ECEF
+relAcc = [diff(relVel(:,1)) diff(relVel(:,2)) diff(relVel(:,3))].*(1/dt); % km/s^2, ECEF
 
 EastPos = zeros(length(Times),1);
 EastVel = zeros(length(Times)-1,1);
@@ -262,15 +264,48 @@ for k = 1:length(Times)
 end
 
 figure
+subplot(3,1,1)
+plot3(rECEF_Hopper(:,1),rECEF_Hopper(:,2),rECEF_Hopper(:,3))
+title('Numerical Body Position')
+view(0,90)
+
+subplot(3,1,2)
+plot3(relVel(1:end-1,1),relVel(1:end-1,2),relVel(1:end-1,3))
+title('Numerical Body Velocity')
+PlotBoi3('X','Y','Z',16)
+view(0,90)
+
+subplot(3,1,3)
 plot3(relAcc(1:end-1,1),relAcc(1:end-1,2),relAcc(1:end-1,3))
 title('Numerical Body Acceleration')
 PlotBoi3('X','Y','Z',16)
 view(0,90)
+
 figure
+subplot(2,1,1)
+plot3(rAnalytical(:,1),rAnalytical(:,2),rAnalytical(:,3))
+title('Analytical Body Position')
+PlotBoi3('X','Y','Z',16)
+view(0,90)
+
+subplot(2,1,2)
 plot3(aECEF_Hopper(:,1),aECEF_Hopper(:,2),aECEF_Hopper(:,3))
 title('Analytical Body Acceleration')
 PlotBoi3('X','Y','Z',16)
 view(0,90)
+
+figure
+subplot(3,1,1)
+plot(Times(1:end-3),aECEF_Hopper(1:end-3,1)-relAcc(1:end-1,1))
+title('Error Between Analytical and Numerical ECEF Acceleration')
+PlotBoi2('','X Error, km/s^2',14)
+subplot(3,1,2)
+plot(Times(1:end-3),aECEF_Hopper(1:end-3,2)-relAcc(1:end-1,2))
+PlotBoi2('','Y Error, km/s^2',14)
+subplot(3,1,3)
+plot(Times(1:end-3),aECEF_Hopper(1:end-3,3)-relAcc(1:end-1,3))
+PlotBoi2('','Z Error, km/s^2',14)
+
 % figure
 % plot3(aECEF_Hopper(:,1),aECEF_Hopper(:,2),aECEF_Hopper(:,3))
 % title('aECEF_Hopper')
