@@ -188,16 +188,24 @@ for k = 1:length(Times)
 %     aECEF_B(k,:) = R3(aECI_Hopper(k,:),-th); % km/s^2
     
     %%% Determining Inertial Velocities in Body Frame
-    vB = States(k,4:6) - cross(wE,rECEF_Hopper(k,:)); % km/s
+%     vB = States(k,4:6) - cross(wE,rECEF_Hopper(k,:)); % km/s
+    vB = States(k,4:6) - v_Europa(k,:) - cross(wE,rECEF_Hopper(k,:)); % km/s
+    
+    %%% Determining Acceleration of Europa in JCI
+    aE = (-uJ/(norm(r_Europa(k,:))^3))*r_Europa(k,:);
     
     %%% Determining Body Frame Acceleration
-    aECEF_Hopper(k,:) = aECI_Hopper(k,:) - 2*cross(wE',vB) - cross(wE',cross(wE',rECEF_Hopper(k,:))); % km/s^2
+    aECEF_Hopper(k,:) = aECI_Hopper(k,:) - aE - 2*cross(wE',vB) - cross(wE',cross(wE',rECEF_Hopper(k,:))); % km/s^2
     
 end
 
 vAnalytical = cumtrapz(aECEF_Hopper(:,:)) * dt + vH01;
 rAnalytical = cumtrapz(vAnalytical(:,:)) * dt + rH01;
 
+[latAn, lonAn] = ECEF2latlon(rAnalytical(end,:)); % rad
+latAn = latAn * 180/pi; % deg
+lonAn = lonAn * 180/pi; % deg
+azAn = azimuth(lat1,lon1,latAn,lonAn) % deg
 % ------------------------------------------------------------------------
 %%% Calculating Initial Tidal Accelerations
 % ------------------------------------------------------------------------
@@ -265,46 +273,69 @@ end
 
 figure
 subplot(3,1,1)
+hold all
 plot3(rECEF_Hopper(:,1),rECEF_Hopper(:,2),rECEF_Hopper(:,3))
+plot3(rECEF_Hopper(1,1),rECEF_Hopper(1,2),rECEF_Hopper(1,3),'o','markersize',10)
+PlotBoi3('X','Y','Z',12)
 title('Numerical Body Position')
 view(0,90)
 
 subplot(3,1,2)
-plot3(relVel(1:end-1,1),relVel(1:end-1,2),relVel(1:end-1,3))
+plot3(relVel(1:end-1,1),relVel(1:end-1,2),relVel(1:end-1,3),'.')
 title('Numerical Body Velocity')
-PlotBoi3('X','Y','Z',16)
+PlotBoi3('X','Y','Z',12)
 view(0,90)
 
 subplot(3,1,3)
-plot3(relAcc(1:end-1,1),relAcc(1:end-1,2),relAcc(1:end-1,3))
+plot3(relAcc(1:end-1,1),relAcc(1:end-1,2),relAcc(1:end-1,3),'.')
 title('Numerical Body Acceleration')
-PlotBoi3('X','Y','Z',16)
-view(0,90)
-
-figure
-subplot(2,1,1)
-plot3(rAnalytical(:,1),rAnalytical(:,2),rAnalytical(:,3))
-title('Analytical Body Position')
-PlotBoi3('X','Y','Z',16)
-view(0,90)
-
-subplot(2,1,2)
-plot3(aECEF_Hopper(:,1),aECEF_Hopper(:,2),aECEF_Hopper(:,3))
-title('Analytical Body Acceleration')
-PlotBoi3('X','Y','Z',16)
+PlotBoi3('X','Y','Z',12)
 view(0,90)
 
 figure
 subplot(3,1,1)
-plot(Times(1:end-3),aECEF_Hopper(1:end-3,1)-relAcc(1:end-1,1))
-title('Error Between Analytical and Numerical ECEF Acceleration')
-PlotBoi2('','X Error, km/s^2',14)
+hold all
+plot3(rAnalytical(:,1),rAnalytical(:,2),rAnalytical(:,3))
+plot3(rAnalytical(1,1),rAnalytical(1,2),rAnalytical(1,3),'o','markersize',10)
+title('Analytical Body Position')
+PlotBoi3('X','Y','Z',12)
+view(0,90)
+
 subplot(3,1,2)
-plot(Times(1:end-3),aECEF_Hopper(1:end-3,2)-relAcc(1:end-1,2))
-PlotBoi2('','Y Error, km/s^2',14)
+plot3(vAnalytical(:,1),vAnalytical(:,2),vAnalytical(:,3))
+title('Analytical Body Velocity')
+PlotBoi3('X','Y','Z',12)
+view(0,90)
+
 subplot(3,1,3)
-plot(Times(1:end-3),aECEF_Hopper(1:end-3,3)-relAcc(1:end-1,3))
-PlotBoi2('','Z Error, km/s^2',14)
+plot3(aECEF_Hopper(:,1),aECEF_Hopper(:,2),aECEF_Hopper(:,3))
+title('Analytical Body Acceleration')
+PlotBoi3('X','Y','Z',12)
+view(0,90)
+
+figure
+subplot(3,1,1)
+plot(Times(1:end-1),rAnalytical((1:end-1),1)-rECEF_Hopper((1:end-1),1),'.')
+title('Error Between Analytical and Numerical ECEF Position')
+PlotBoi2('','X Error, km/s^2',12)
+subplot(3,1,2)
+plot(Times(1:end-1),rAnalytical((1:end-1),2)-rECEF_Hopper((1:end-1),2),'.')
+PlotBoi2('','Y Error, km/s^2',12)
+subplot(3,1,3)
+plot(Times(1:end-1),rAnalytical((1:end-1),3)-rECEF_Hopper((1:end-1),3),'.')
+PlotBoi2('','Z Error, km/s^2',12)
+
+figure
+subplot(3,1,1)
+plot(Times(1:end-3),aECEF_Hopper(1:end-3,1)-relAcc(1:end-1,1),'.')
+title('Error Between Analytical and Numerical ECEF Acceleration')
+PlotBoi2('','X Error, km/s^2',12)
+subplot(3,1,2)
+plot(Times(1:end-3),aECEF_Hopper(1:end-3,2)-relAcc(1:end-1,2),'.')
+PlotBoi2('','Y Error, km/s^2',12)
+subplot(3,1,3)
+plot(Times(1:end-3),aECEF_Hopper(1:end-3,3)-relAcc(1:end-1,3),'.')
+PlotBoi2('','Z Error, km/s^2',12)
 
 % figure
 % plot3(aECEF_Hopper(:,1),aECEF_Hopper(:,2),aECEF_Hopper(:,3))
