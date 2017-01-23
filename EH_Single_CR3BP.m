@@ -199,8 +199,23 @@ for k = 1:length(Times)
     
 end
 
-vAnalytical = cumtrapz(aECEF_Hopper(:,:)) * dt + vH01;
-rAnalytical = cumtrapz(vAnalytical(:,:)) * dt + rH01;
+% vAnalytical = cumtrapz(aECEF_Hopper(1:end-1,:)) * dt + vH01;
+% rAnalytical = cumtrapz(vAnalytical(:,:)) * dt + rH01;
+% size(vAnalytical)
+% size(rAnalytical)
+% vAnalytical(end,:)
+% rAnalytical(end,:)
+% vAnalytical = [vAnalytical; cumtrapz(aECEF_Hopper(end-1,:)) * (Times(end)-Times(end-1)) + vAnalytical(end,:)];
+% rAnalytical = [rAnalytical; cumtrapz(vAnalytical(end-1,:)) * (Times(end)-Times(end-1)) + rAnalytical(end,:)];
+% size(vAnalytical)
+% size(rAnalytical)
+
+% vAnalytical = cumtrapz(aECEF_Hopper(:,:)) * dt + vH01;
+% rAnalytical = cumtrapz(vAnalytical(:,:)) * dt + rH01;
+
+vAnalytical = cumtrapz(Times, aECEF_Hopper(:,:)) + vH01;
+rAnalytical = cumtrapz(Times, vAnalytical(:,:)) + rH01;
+
 
 [latAn, lonAn] = ECEF2latlon(rAnalytical(end,:)); % rad
 latAn = latAn * 180/pi; % deg
@@ -276,42 +291,45 @@ subplot(3,1,1)
 hold all
 plot3(rECEF_Hopper(:,1),rECEF_Hopper(:,2),rECEF_Hopper(:,3))
 plot3(rECEF_Hopper(1,1),rECEF_Hopper(1,2),rECEF_Hopper(1,3),'o','markersize',10)
+plot3(rECEF_Hopper(end,1),rECEF_Hopper(end,2),rECEF_Hopper(end,3),'+','markersize',10)
 PlotBoi3('X','Y','Z',12)
 title('Numerical Body Position')
-view(0,90)
+view(0,90); axis equal;
 
 subplot(3,1,2)
 plot3(relVel(1:end-1,1),relVel(1:end-1,2),relVel(1:end-1,3),'.')
 title('Numerical Body Velocity')
 PlotBoi3('X','Y','Z',12)
-view(0,90)
+view(0,90); axis equal;
 
 subplot(3,1,3)
 plot3(relAcc(1:end-1,1),relAcc(1:end-1,2),relAcc(1:end-1,3),'.')
 title('Numerical Body Acceleration')
 PlotBoi3('X','Y','Z',12)
-view(0,90)
+view(0,90); axis equal; 
 
 figure
 subplot(3,1,1)
 hold all
 plot3(rAnalytical(:,1),rAnalytical(:,2),rAnalytical(:,3))
 plot3(rAnalytical(1,1),rAnalytical(1,2),rAnalytical(1,3),'o','markersize',10)
+plot3(rAnalytical(end,1),rAnalytical(end,2),rAnalytical(end,3),'+','markersize',10)
+
 title('Analytical Body Position')
 PlotBoi3('X','Y','Z',12)
-view(0,90)
+view(0,90); axis equal; 
 
 subplot(3,1,2)
 plot3(vAnalytical(:,1),vAnalytical(:,2),vAnalytical(:,3))
 title('Analytical Body Velocity')
 PlotBoi3('X','Y','Z',12)
-view(0,90)
+view(0,90); axis equal; 
 
 subplot(3,1,3)
 plot3(aECEF_Hopper(:,1),aECEF_Hopper(:,2),aECEF_Hopper(:,3))
 title('Analytical Body Acceleration')
 PlotBoi3('X','Y','Z',12)
-view(0,90)
+view(0,90); axis equal; 
 
 figure
 subplot(3,1,1)
