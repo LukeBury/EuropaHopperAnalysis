@@ -63,7 +63,7 @@ lon1 = -45; % deg (-180:180)
 %%% Radial Velocity (Europa relative)
 % v_mag = 1.9; % km/s (-45, 0)
 % v_mag = 1.95; % km/s (-45,0)
-v_mag = 0.015; % km/s
+v_mag = 0.1; % km/s
 vH01 = (rH01/norm(rH01))*v_mag;
 % .013, -85 lon 0 lat
 % 
@@ -188,7 +188,6 @@ for k = 1:length(Times)
 %     aECEF_B(k,:) = R3(aECI_Hopper(k,:),-th); % km/s^2
     
     %%% Determining Inertial Velocities in Body Frame
-%     vB = States(k,4:6) - cross(wE,rECEF_Hopper(k,:)); % km/s
     vB = States(k,4:6) - v_Europa(k,:) - cross(wE,rECEF_Hopper(k,:)); % km/s
     
     %%% Determining Acceleration of Europa in JCI
@@ -198,6 +197,7 @@ for k = 1:length(Times)
     aECEF_Hopper(k,:) = aECI_Hopper(k,:) - aE - 2*cross(wE',vB) - cross(wE',cross(wE',rECEF_Hopper(k,:))); % km/s^2
     
 end
+clear vB aE
 
 vAnalytical = cumtrapz(Times, aECEF_Hopper(:,:)) + vH01;
 rAnalytical = cumtrapz(Times, vAnalytical(:,:)) + rH01;
@@ -351,20 +351,19 @@ view(0,90); axis equal;
 %%% Jacobi Constant
 % ------------------------------------------------------------------------
 JC = zeros(length(Times),1);
+rBC = rE0.*(uE/uJ);
 for k = 1:length(Times)
-    JC(k) = -States(k,4)^2 - States(k,5)^2 - States(k,6)^2 + nE*nE*(States(k,1)^2 + States(k,2)^2)...
-        + 2*uJ/norm(States(k,1:3)) + 2*uE/norm(rECI_Hopper(k,1:3));
-    
-%     vJC = R3(States(k,4:6),-nE*Times(k));
-%     
-%     JC(k) = nE^2*((rECI_Hopper(k,1)+r_Europa(k,1))^2 + (rECI_Hopper(k,2)+r_Europa(k,2))^2)...
-%         + 2*(uJ/norm(States(k,1:3)) + uE/norm(rECI_Hopper(k,:))) - (vJC(1)^2 + vJC(2)^2 + vJC(3)^2);
-    
+    vJC = States(k,4:6) - v_Europa(k,:) - cross(wE,rECEF_Hopper(k,:));
+%     vJC = R3(States(k,4:6) - v_Europa(k,:),-nE*Times(k)) - cross(wE,rECEF_Hopper(k,:));
+
+    JC(k) = nE^2*((rECEF_Hopper(k,1)+rE0(1)-rBC(1))^2 + (rECEF_Hopper(k,2)+rE0(2))^2)...
+        + 2*(uJ/norm(States(k,1:3)) + uE/norm(rECEF_Hopper(k,:))) - (vJC(1)^2 + vJC(2)^2 + vJC(3)^2);
 end
+clear vJC
 
 JC(end) - JC(1)
 figure
-plot(Times,JC)
+plot(Times,(JC-JC(1))*100./(JC(1)))
 
 
 
@@ -473,18 +472,6 @@ if ECIplot == 1
         sc1*(vH02(1)),sc1*(vH02(2)),sc1*(vH02(3)),...
         'linewidth',2,'color',[0 0 0])
     
-%     %%% Plotting Intial ECEF Velocity
-%     sc1 = 1000; % scalar
-%     quiver3(rH01(1),rH01(2),rH01(3),...
-%         sc1*(vH01(1)),sc1*(vH01(2)),sc1*(vH01(3)),...
-%         'linewidth',2,'color',[.7 .7 .7])
-
-    %%% Plotting Europa Rotation Vectors
-%     quiver3(0, 0, 0, 2*rH01(1), 2*rH01(2), 2*rH01(3)); % Vector through starting location
-%     new_rH01 = R3(rH01,wE(3)*Times(end));
-%     quiver3(0, 0, 0, 2*new_rH01(1), 2*new_rH01(2), 2*new_rH01(3)); % Vector through same location but rotated in space
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ^ This is experimental for equator  only
-
     %%% To Focus on Europa
     xlim([-E_radius*scale1 E_radius*scale1])
     ylim([-E_radius*scale1 E_radius*scale1])
