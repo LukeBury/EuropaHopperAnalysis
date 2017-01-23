@@ -20,7 +20,7 @@ JCIplot = 0; % no = 0, yes = 1
 rECIplot = 0; % no = 0, yes = 1
 
 % Plot East-ness vs Time?
-EquatorialEastPlot = 0; % no = 0, yes = 1
+EquatorialEastPlot = 1; % no = 0, yes = 1
 
 % Run movie?
 runECEFMovie = 0; % no = 0, yes = 1
@@ -63,7 +63,7 @@ lon1 = -45; % deg (-180:180)
 %%% Radial Velocity (Europa relative)
 % v_mag = 1.9; % km/s (-45, 0)
 % v_mag = 1.95; % km/s (-45,0)
-v_mag = 0.015; % km/s
+v_mag = 0.035; % km/s
 vH01 = (rH01/norm(rH01))*v_mag;
 % .013, -85 lon 0 lat
 % 
@@ -199,23 +199,8 @@ for k = 1:length(Times)
     
 end
 
-% vAnalytical = cumtrapz(aECEF_Hopper(1:end-1,:)) * dt + vH01;
-% rAnalytical = cumtrapz(vAnalytical(:,:)) * dt + rH01;
-% size(vAnalytical)
-% size(rAnalytical)
-% vAnalytical(end,:)
-% rAnalytical(end,:)
-% vAnalytical = [vAnalytical; cumtrapz(aECEF_Hopper(end-1,:)) * (Times(end)-Times(end-1)) + vAnalytical(end,:)];
-% rAnalytical = [rAnalytical; cumtrapz(vAnalytical(end-1,:)) * (Times(end)-Times(end-1)) + rAnalytical(end,:)];
-% size(vAnalytical)
-% size(rAnalytical)
-
-% vAnalytical = cumtrapz(aECEF_Hopper(:,:)) * dt + vH01;
-% rAnalytical = cumtrapz(vAnalytical(:,:)) * dt + rH01;
-
 vAnalytical = cumtrapz(Times, aECEF_Hopper(:,:)) + vH01;
 rAnalytical = cumtrapz(Times, vAnalytical(:,:)) + rH01;
-
 
 [latAn, lonAn] = ECEF2latlon(rAnalytical(end,:)); % rad
 latAn = latAn * 180/pi; % deg
@@ -238,26 +223,30 @@ d_TanTidal = .5*norm(aT)*Times(end)*Times(end)*1000;
 % ------------------------------------------------------------------------
 %%% East Calculations
 % ------------------------------------------------------------------------
-relPos= zeros(size(States,1),3);
-EastPos = zeros(size(States,1),1);
-EastAnalyticalAccel = zeros(size(States,1),1);
-aTs = zeros(size(States,1),3);
-EastAT = zeros(size(States,1),1);
-EastUVec = zeros(size(States,1),3);
+relPos= zeros(length(Times),3);
+EastAnalyticalPos = zeros(length(Times),1);
+EastAnalyticalVel = zeros(length(Times),1);
+EastAnalyticalAcc = zeros(length(Times),1);
+aTs = zeros(length(Times),3);
+EastAT = zeros(length(Times),1);
+EastUVec = zeros(length(Times),3);
 
 liftoffUVec = (rECEF_Hopper(1,:)./norm(rECEF_Hopper(1,:))); % Uvec to liftoff spot in ECEF
 EastUVec(1,:) = cross(liftoffUVec,[0,0,-1]); % unit vector pointing local east from liftoff spot, km
 
-for k = 1:size(rECEF_Hopper,1)
+for k = 1:length(Times)
     %%% Finding Eastern Unit Vector
-    EastUVec(k,:) = cross(rECEF_Hopper(k,:)./norm(rECEF_Hopper(k,:)), [0,0,-1]);
+%     EastUVec(k,:) = cross(rECEF_Hopper(k,:)./norm(rECEF_Hopper(k,:)), [0,0,-1]);
+    EastUVec(k,:) = cross(rECEF_Hopper(1,:)./norm(rECEF_Hopper(1,:)), [0,0,-1]);
     
     %%% Numerical East
     th = nE*Times(k); % How far Europa has rotated, rad
     relPos(k,:) = rECEF_Hopper(k,:) - rECEF_Hopper(1,:); % relative position of hopper to starting point, km
     
     %%% Analytical East
-    EastAnalyticalAccel(k) = dot(EastUVec(k,:),aECEF_Hopper(k,:));
+    EastAnalyticalPos(k) = dot(EastUVec(k,:),rAnalytical(k,:));
+    EastAnalyticalVel(k) = dot(EastUVec(k,:),vAnalytical(k,:));
+    EastAnalyticalAcc(k) = dot(EastUVec(k,:),aECEF_Hopper(k,:));
     
     %%% Tidal East
     aHJ = (-uJ/(norm(States(k,1:3))^3))*States(k,1:3); % Hopper --> Jupiter, km/s^2
@@ -272,17 +261,17 @@ relVel = [diff(rECEF_Hopper(:,1)) diff(rECEF_Hopper(:,2)) diff(rECEF_Hopper(:,3)
 % relVel = [diff(relPos(:,1)) diff(relPos(:,2)) diff(relPos(:,3))].*(1/dt); % km/s, ECEF
 relAcc = [diff(relVel(:,1)) diff(relVel(:,2)) diff(relVel(:,3))].*(1/dt); % km/s^2, ECEF
 
-EastPos = zeros(length(Times),1);
-EastVel = zeros(length(Times)-1,1);
-EastAcc = zeros(length(Times)-2,1);
+EastNumericalPos = zeros(length(Times),1);
+EastNumericalVel = zeros(length(Times)-1,1);
+EastNumericalAcc = zeros(length(Times)-2,1);
 
 for k = 1:length(Times)
-    EastPos(k) = dot(EastUVec(k,:),relPos(k,:)); % component of relative position in the East direction
+    EastNumericalPos(k) = dot(EastUVec(k,:),relPos(k,:)); % component of relative position in the East direction
     if k < length(Times)
-        EastVel(k) = dot(EastUVec(k,:),relVel(k,:));
+        EastNumericalVel(k) = dot(EastUVec(k,:),relVel(k,:));
     end
     if k < (length(Times)-1)
-        EastAcc(k) = dot(EastUVec(k,:),relAcc(k,:));
+        EastNumericalAcc(k) = dot(EastUVec(k,:),relAcc(k,:));
     end
 end
 
@@ -576,29 +565,40 @@ if EquatorialEastPlot == 1
 %%% Plotting Numerical Eastern Position, Velocity, and Acceleration
 figure
 subplot(3,1,1)
-title('Data from Numerical Integration')
+title('Numerically Calculated Eastern Pos/Vel/Acc')
 hold all
-plot(Times, EastPos,'.')
+plot(Times, EastNumericalPos,'.')
 plot([0 Times(end)],[0 0],'--r')
-PlotBoi2('Time', 'East Pos, km', 16)
+PlotBoi2('', 'East Pos, km', 14)
 subplot(3,1,2)
 hold all
-plot(Times(1:end-2), EastVel(1:end-1),'.')
+plot(Times(1:end-2), EastNumericalVel(1:end-1),'.')
 plot([0 Times(end)],[0 0],'--r')
-PlotBoi2('Time', 'East Vel, km/s', 16)
+PlotBoi2('', 'East Vel, km/s', 14)
 subplot(3,1,3)
 hold all
-plot(Times(1:end-3), EastAcc(1:end-1),'.')
+plot(Times(1:end-3), EastNumericalAcc(1:end-1),'.')
 plot([0 Times(end)],[0 0],'--r')
-PlotBoi2('Time', 'East Acc, km/s^2', 16)
+PlotBoi2('Time, sec', 'East Acc, km/s^2', 14)
 
 %%% Plotting Analytical Acceleration
 figure
-hold on
-plot(Times, EastAnalyticalAccel)
-plot(Times(1),EastAnalyticalAccel(1),'o','markersize',10)
-title('Analytically Calculated Eastern Acceleration')
-PlotBoi2('Time, sec','Eastern Acceleration, km/s^2',16)
+subplot(3,1,1);hold on
+title('Analytically Calculated Eastern Pos/Vel/Acc')
+plot(Times, EastAnalyticalPos,'.')
+plot(Times(1),EastAnalyticalPos(1),'o','markersize',10)
+plot([0 Times(end)],[0 0],'--r')
+PlotBoi2('', 'East Pos, km', 14)
+subplot(3,1,2);hold on
+plot(Times, EastAnalyticalVel,'.')
+plot(Times(1),EastAnalyticalVel(1),'o','markersize',10)
+plot([0 Times(end)],[0 0],'--r')
+PlotBoi2('', 'East Vel, km/s', 14)
+subplot(3,1,3);hold on
+plot(Times, EastAnalyticalAcc,'.')
+plot(Times(1),EastAnalyticalAcc(1),'o','markersize',10)
+plot([0 Times(end)],[0 0],'--r')
+PlotBoi2('Time, sec','Eastern Acc, km/s^2',14)
 
 % %%% Plotting Tidal Acceleration
 % figure
@@ -705,6 +705,14 @@ if runECIMovie == 1
     end
 end
 
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% Results
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+fprintf('===== NUMERICAL RESULTS =====\n')
 % ------------------------------------------------------------------------
 %%% Printing Impact Time
 % ------------------------------------------------------------------------
