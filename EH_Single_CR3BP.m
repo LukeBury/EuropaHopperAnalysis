@@ -20,7 +20,7 @@ JCIplot = 0; % no = 0, yes = 1
 rECIplot = 0; % no = 0, yes = 1
 
 % Plot East-ness vs Time?
-EquatorialEastPlot = 1; % no = 0, yes = 1
+EquatorialEastPlot = 0; % no = 0, yes = 1
 
 % Run movie?
 runECEFMovie = 0; % no = 0, yes = 1
@@ -63,7 +63,7 @@ lon1 = -45; % deg (-180:180)
 %%% Radial Velocity (Europa relative)
 % v_mag = 1.9; % km/s (-45, 0)
 % v_mag = 1.95; % km/s (-45,0)
-v_mag = 0.035; % km/s
+v_mag = 0.015; % km/s
 vH01 = (rH01/norm(rH01))*v_mag;
 % .013, -85 lon 0 lat
 % 
@@ -275,6 +275,9 @@ for k = 1:length(Times)
     end
 end
 
+% ------------------------------------------------------------------------
+%%% Comparing Analytical and Numerical Results (kind of)
+% ------------------------------------------------------------------------
 figure
 subplot(3,1,1)
 hold all
@@ -320,42 +323,48 @@ title('Analytical Body Acceleration')
 PlotBoi3('X','Y','Z',12)
 view(0,90); axis equal; 
 
-figure
-subplot(3,1,1)
-plot(Times(1:end-1),rAnalytical((1:end-1),1)-rECEF_Hopper((1:end-1),1),'.')
-title('Error Between Analytical and Numerical ECEF Position')
-PlotBoi2('','X Error, km/s^2',12)
-subplot(3,1,2)
-plot(Times(1:end-1),rAnalytical((1:end-1),2)-rECEF_Hopper((1:end-1),2),'.')
-PlotBoi2('','Y Error, km/s^2',12)
-subplot(3,1,3)
-plot(Times(1:end-1),rAnalytical((1:end-1),3)-rECEF_Hopper((1:end-1),3),'.')
-PlotBoi2('','Z Error, km/s^2',12)
-
-figure
-subplot(3,1,1)
-plot(Times(1:end-3),aECEF_Hopper(1:end-3,1)-relAcc(1:end-1,1),'.')
-title('Error Between Analytical and Numerical ECEF Acceleration')
-PlotBoi2('','X Error, km/s^2',12)
-subplot(3,1,2)
-plot(Times(1:end-3),aECEF_Hopper(1:end-3,2)-relAcc(1:end-1,2),'.')
-PlotBoi2('','Y Error, km/s^2',12)
-subplot(3,1,3)
-plot(Times(1:end-3),aECEF_Hopper(1:end-3,3)-relAcc(1:end-1,3),'.')
-PlotBoi2('','Z Error, km/s^2',12)
-
 % figure
-% plot3(aECEF_Hopper(:,1),aECEF_Hopper(:,2),aECEF_Hopper(:,3))
-% title('aECEF_Hopper')
-% PlotBoi3('X','Y','Z',16)
+% subplot(3,1,1)
+% plot(Times(1:end-1),rAnalytical((1:end-1),1)-rECEF_Hopper((1:end-1),1),'.')
+% title('Error Between Analytical and Numerical ECEF Position')
+% PlotBoi2('','X Error, km/s^2',12)
+% subplot(3,1,2)
+% plot(Times(1:end-1),rAnalytical((1:end-1),2)-rECEF_Hopper((1:end-1),2),'.')
+% PlotBoi2('','Y Error, km/s^2',12)
+% subplot(3,1,3)
+% plot(Times(1:end-1),rAnalytical((1:end-1),3)-rECEF_Hopper((1:end-1),3),'.')
+% PlotBoi2('','Z Error, km/s^2',12)
+% 
 % figure
-% plot3(aTs(:,1),aTs(:,2),aTs(:,3))
-% title('aTs')
-% PlotBoi3('X','Y','Z',16)
+% subplot(3,1,1)
+% plot(Times(1:end-3),aECEF_Hopper(1:end-3,1)-relAcc(1:end-1,1),'.')
+% title('Error Between Analytical and Numerical ECEF Acceleration')
+% PlotBoi2('','X Error, km/s^2',12)
+% subplot(3,1,2)
+% plot(Times(1:end-3),aECEF_Hopper(1:end-3,2)-relAcc(1:end-1,2),'.')
+% PlotBoi2('','Y Error, km/s^2',12)
+% subplot(3,1,3)
+% plot(Times(1:end-3),aECEF_Hopper(1:end-3,3)-relAcc(1:end-1,3),'.')
+% PlotBoi2('','Z Error, km/s^2',12)
 
+% ------------------------------------------------------------------------
+%%% Jacobi Constant
+% ------------------------------------------------------------------------
+JC = zeros(length(Times),1);
+for k = 1:length(Times)
+    JC(k) = -States(k,4)^2 - States(k,5)^2 - States(k,6)^2 + nE*nE*(States(k,1)^2 + States(k,2)^2)...
+        + 2*uJ/norm(States(k,1:3)) + 2*uE/norm(rECI_Hopper(k,1:3));
+    
+%     vJC = R3(States(k,4:6),-nE*Times(k));
+%     
+%     JC(k) = nE^2*((rECI_Hopper(k,1)+r_Europa(k,1))^2 + (rECI_Hopper(k,2)+r_Europa(k,2))^2)...
+%         + 2*(uJ/norm(States(k,1:3)) + uE/norm(rECI_Hopper(k,:))) - (vJC(1)^2 + vJC(2)^2 + vJC(3)^2);
+    
+end
 
-
-
+JC(end) - JC(1)
+figure
+plot(Times,JC)
 
 
 
