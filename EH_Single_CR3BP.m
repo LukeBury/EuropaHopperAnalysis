@@ -352,16 +352,24 @@ view(0,90); axis equal;
 % ------------------------------------------------------------------------
 JC = zeros(length(Times),1);
 rBC = rE0.*(uE/uJ);
-for k = 1:length(Times)
-    vJC = States(k,4:6) - v_Europa(k,:) - cross(wE,rECEF_Hopper(k,:));
-%     vJC = R3(States(k,4:6) - v_Europa(k,:),-nE*Times(k)) - cross(wE,rECEF_Hopper(k,:));
+mu = uE/(uE + uJ);
 
-    JC(k) = nE^2*((rECEF_Hopper(k,1)+rE0(1)-rBC(1))^2 + (rECEF_Hopper(k,2)+rE0(2))^2)...
-        + 2*(uJ/norm(States(k,1:3)) + uE/norm(rECEF_Hopper(k,:))) - (vJC(1)^2 + vJC(2)^2 + vJC(3)^2);
+for k = 1:length(Times)
+    vBC = rBC(1)*nE; % Barycenter velocity
+    vJC = States(k,4:6) - [0, vBC, 0] - cross(wE,(States(k,1:3)-rBC));
+%     vJC = States(k,4:6) - v_Europa(k,:) - cross(wE,rECEF_Hopper(k,:));
+
+%     JC(k) = nE^2*((rECEF_Hopper(k,1)+rE0(1)-rBC(1))^2 + (rECEF_Hopper(k,2)+rE0(2))^2)...
+%         + 2*(uJ/norm(States(k,1:3)) + uE/norm(rECEF_Hopper(k,:))) - (vJC(1)^2 + vJC(2)^2 + vJC(3)^2);
+
+    JC(k) = ((rECEF_Hopper(k,1)+rE0(1)-rBC(1))./rE0(1))^2 + ((rECEF_Hopper(k,2))./rE0(1))^2 ...
+        + 2*(1-mu)/norm(States(k,1:3)./rE0(1)) + 2*mu/norm(rECEF_Hopper(k,:)./rE0(1)) - norm(vJC./rE0(1))^2;
 end
-clear vJC
+clear vJC mu
 
 JC(end) - JC(1)
+figure
+plot(Times,JC)
 figure
 plot(Times,(JC-JC(1))*100./(JC(1)))
 
