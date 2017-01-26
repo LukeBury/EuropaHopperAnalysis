@@ -22,6 +22,9 @@ rECIplot = 0; % no = 0, yes = 1
 % Plot East-ness vs Time?
 EquatorialEastPlot = 0; % no = 0, yes = 1
 
+% Plot Numerical vs Analytical Results?
+compareAnalyticalNumericalPlots = 0; % no = 0, yes = 1
+
 % Run movie?
 runECEFMovie = 0; % no = 0, yes = 1
 runECIMovie = 0; % no = 0, yes = 1
@@ -63,7 +66,7 @@ lon1 = -45; % deg (-180:180)
 %%% Radial Velocity (Europa relative)
 % v_mag = 1.9; % km/s (-45, 0)
 % v_mag = 1.95; % km/s (-45,0)
-v_mag = 0.1; % km/s
+v_mag = .015; % km/s
 vH01 = (rH01/norm(rH01))*v_mag;
 % .013, -85 lon 0 lat
 % 
@@ -79,18 +82,18 @@ vH03 = vH02 + vE0; % Making velocity relative to Jupiter (adding Europa v)
 %%% Correcting Hopper Position
 rH02 = rH01 + rE0; % Making position relative to Jupiter
 
-%%% Setting Initial State Vector
-X0 = [rH02 vH03]; % km km/s km km/s
+%%% Setting Initial State Vector (JCI)
+X0_JCI = [rH02 vH03]; % km km/s km km/s
 
 % ------------------------------------------------------------------------
-%%% Propagating the State with Numerically Integration
+%%% Propagating the State with Numerical Integration
 % ------------------------------------------------------------------------
 %%% Setting integrator accuracy
 tol = 1E-13;
 options = odeset('Events',@impactEvent_CR3BP,'RelTol',tol,'AbsTol',tol);
 
 %%% Propagating the State
-[Times,States] = ode45(@EH_NumIntegrator_CR3BP,time,X0,options,E_radius,uE,uJ,nE,E_a);
+[Times,States] = ode45(@EH_NumIntegrator_CR3BP,time,X0_JCI,options,E_radius,uE,uJ,nE,E_a);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -107,7 +110,6 @@ for k = 1:size(Times,1)
     r_Europa(k,:) = R3(rE0,ta); % km, JCI Europa position vectors
     v_Europa(k,:) = R3(vE0,ta); % km/s, JCI Europa velocity vectors
 end
-
 %%% Assigning final states of Europa (for simplicity)
 rEf = r_Europa(end,:); % km
 taf = nE * Times(end); % rad
@@ -166,17 +168,6 @@ end
 % ------------------------------------------------------------------------
 %%% Calculating ECEF Hopper Accelerations
 % ------------------------------------------------------------------------
-% %%% Initializing ECI and ECEF acceleration matrices
-% aECI_Hopper = zeros(size(States,1),3); % km/s^2
-% aECEF_Hopper = zeros(size(States,1),3); % km/s^2
-% 
-% %%% Calculating ECI and ECEF Hopper accelerations at each time step
-% for k = 1:size(States,1)
-%     aECI_Hopper(k,:) = (-uJ/(norm(States(k,1:3))^3))*States(k,1:3) + (-uE/(norm(rECI_Hopper(k,:))^3))*rECI_Hopper(k,:); % km/s^2
-%     vB = States(k,4:6) - v_Europa(k,:) - cross(wE,rECEF_Hopper(k,:)); % km/s
-%     aECEF_Hopper(k,:) = aECI_Hopper(k,:) - 2*cross(wE,vB) - cross(wE,cross(wE,rECEF_Hopper(k,:))); % km/s^2
-% end
-
 %%% Initializing ECI and ECEF acceleration matrices
 aECI_Hopper = zeros(size(States,1),3); % km/s^2
 aECEF_Hopper = zeros(size(States,1),3); % km/s^2
@@ -184,8 +175,8 @@ aECEF_Hopper = zeros(size(States,1),3); % km/s^2
 %%% Calculating ECI and ECEF Hopper accelerations at each time step
 for k = 1:length(Times)        
     %%% Determining Inertial Accelerations in Body Frame
-    aECI_Hopper(k,:) = (-uJ/(norm(States(k,1:3))^3))*States(k,1:3) + (-uE/(norm(rECI_Hopper(k,:))^3))*rECI_Hopper(k,:); % km/s^2
-%     aECEF_B(k,:) = R3(aECI_Hopper(k,:),-th); % km/s^2
+    aECI_Hopper(k,:) = (-uJ/(norm(States(k,1:3))^3))*States(k,1:3)...
+        + (-uE/(norm(rECI_Hopper(k,:))^3))*rECI_Hopper(k,:); % km/s^2
     
     %%% Determining Inertial Velocities in Body Frame
     vB = States(k,4:6) - v_Europa(k,:) - cross(wE,rECEF_Hopper(k,:)); % km/s
@@ -202,10 +193,6 @@ clear vB aE
 vAnalytical = cumtrapz(Times, aECEF_Hopper(:,:)) + vH01;
 rAnalytical = cumtrapz(Times, vAnalytical(:,:)) + rH01;
 
-[latAn, lonAn] = ECEF2latlon(rAnalytical(end,:)); % rad
-latAn = latAn * 180/pi; % deg
-lonAn = lonAn * 180/pi; % deg
-azAn = azimuth(lat1,lon1,latAn,lonAn) % deg
 % ------------------------------------------------------------------------
 %%% Calculating Initial Tidal Accelerations
 % ------------------------------------------------------------------------
@@ -276,109 +263,209 @@ for k = 1:length(Times)
 end
 
 % ------------------------------------------------------------------------
-%%% Comparing Analytical and Numerical Results (kind of)
+%%% Jacobi Constant (Numerical)
 % ------------------------------------------------------------------------
-figure
-subplot(3,1,1)
-hold all
-plot3(rECEF_Hopper(:,1),rECEF_Hopper(:,2),rECEF_Hopper(:,3))
-plot3(rECEF_Hopper(1,1),rECEF_Hopper(1,2),rECEF_Hopper(1,3),'o','markersize',10)
-plot3(rECEF_Hopper(end,1),rECEF_Hopper(end,2),rECEF_Hopper(end,3),'+','markersize',10)
-PlotBoi3('X','Y','Z',12)
-title('Numerical Body Position')
-view(0,90); axis equal;
-
-subplot(3,1,2)
-plot3(relVel(1:end-1,1),relVel(1:end-1,2),relVel(1:end-1,3),'.')
-title('Numerical Body Velocity')
-PlotBoi3('X','Y','Z',12)
-view(0,90); axis equal;
-
-subplot(3,1,3)
-plot3(relAcc(1:end-1,1),relAcc(1:end-1,2),relAcc(1:end-1,3),'.')
-title('Numerical Body Acceleration')
-PlotBoi3('X','Y','Z',12)
-view(0,90); axis equal; 
-
-figure
-subplot(3,1,1)
-hold all
-plot3(rAnalytical(:,1),rAnalytical(:,2),rAnalytical(:,3))
-plot3(rAnalytical(1,1),rAnalytical(1,2),rAnalytical(1,3),'o','markersize',10)
-plot3(rAnalytical(end,1),rAnalytical(end,2),rAnalytical(end,3),'+','markersize',10)
-
-title('Analytical Body Position')
-PlotBoi3('X','Y','Z',12)
-view(0,90); axis equal; 
-
-subplot(3,1,2)
-plot3(vAnalytical(:,1),vAnalytical(:,2),vAnalytical(:,3))
-title('Analytical Body Velocity')
-PlotBoi3('X','Y','Z',12)
-view(0,90); axis equal; 
-
-subplot(3,1,3)
-plot3(aECEF_Hopper(:,1),aECEF_Hopper(:,2),aECEF_Hopper(:,3))
-title('Analytical Body Acceleration')
-PlotBoi3('X','Y','Z',12)
-view(0,90); axis equal; 
-
-% figure
-% subplot(3,1,1)
-% plot(Times(1:end-1),rAnalytical((1:end-1),1)-rECEF_Hopper((1:end-1),1),'.')
-% title('Error Between Analytical and Numerical ECEF Position')
-% PlotBoi2('','X Error, km/s^2',12)
-% subplot(3,1,2)
-% plot(Times(1:end-1),rAnalytical((1:end-1),2)-rECEF_Hopper((1:end-1),2),'.')
-% PlotBoi2('','Y Error, km/s^2',12)
-% subplot(3,1,3)
-% plot(Times(1:end-1),rAnalytical((1:end-1),3)-rECEF_Hopper((1:end-1),3),'.')
-% PlotBoi2('','Z Error, km/s^2',12)
-% 
-% figure
-% subplot(3,1,1)
-% plot(Times(1:end-3),aECEF_Hopper(1:end-3,1)-relAcc(1:end-1,1),'.')
-% title('Error Between Analytical and Numerical ECEF Acceleration')
-% PlotBoi2('','X Error, km/s^2',12)
-% subplot(3,1,2)
-% plot(Times(1:end-3),aECEF_Hopper(1:end-3,2)-relAcc(1:end-1,2),'.')
-% PlotBoi2('','Y Error, km/s^2',12)
-% subplot(3,1,3)
-% plot(Times(1:end-3),aECEF_Hopper(1:end-3,3)-relAcc(1:end-1,3),'.')
-% PlotBoi2('','Z Error, km/s^2',12)
-
-% ------------------------------------------------------------------------
-%%% Jacobi Constant
-% ------------------------------------------------------------------------
-JC = zeros(length(Times),1);
-rBC = rE0.*(uE/uJ);
+JC_N = zeros(length(Times),1);
+% rBC = rE0.*(uE/uJ);
 mu = uE/(uE + uJ);
+P = 2*pi*sqrt((E_a^3)/uJ);
+vNorm = P/(E_a*2*pi);
 
 for k = 1:length(Times)
-    vBC = rBC(1)*nE; % Barycenter velocity
-    vJC = States(k,4:6) - [0, vBC, 0] - cross(wE,(States(k,1:3)-rBC));
-%     vJC = States(k,4:6) - v_Europa(k,:) - cross(wE,rECEF_Hopper(k,:));
+    th = Times(k)*nE; % rads
+    
+    %%% Normalized method
+%     rBC = R3(rE0.*(uE/uJ), th); % Barycenter position (JCI)
+%     vBC = cross(wE',rBC); % Barycenter velocity (JCI) 
+%     
+%     x = (rECEF_Hopper(k,1)+rE0(1)-rBC(1))./rE0(1); % Hopper x-position in rotating barycentric frame
+%     y = (rECEF_Hopper(k,2))./rE0(1); % Hopper y-position in rotating barycentric frame
+%     r1 = norm(States(k,1:3))./rE0(1); % Distance from hopper to Jupiter
+%     r2 = norm(rECEF_Hopper(k,:))./rE0(1); % Distance from hopper to Europa
+%     r = [x, y, 0]; % Hopper position in rotating barycentric frame
+%     vJC = (States(k,4:6) - vBC).*vNorm - cross([0,0,1],r); % Hopper velocity in rotating barycentric frame
+% 
+%     JC(k) = (x)^2 + (y)^2 + 2*(1-mu)/r1 + 2*mu/r2 - norm(vJC)^2; % Jacobian constant
+    
+    %%% Non-Normalized Method
+    rBC = R3(rE0.*(uE/uJ), th); % Barycenter position (JCI)
+    vBC = cross(wE',rBC); % Barycenter velocity (JCI) 
+    x = rECEF_Hopper(k,1)+rE0(1)-rBC(1);
+    y = rECEF_Hopper(k,2);
+    r = [x, y, 0];
+%     r = R3(States(k,1:3)-rBC,-th)
+%     x = r(1);
+%     y = r(2);
+    r1 = norm(States(k,1:3));
+    r2 = norm(rECEF_Hopper(k,:));
+    
+    vJC = States(k,4:6) - vBC - cross(wE',r);
+    
+    JC_N(k) = (nE^2)*(x^2 + y^2) + 2*(uJ/r1 + uE/r2) - norm(vJC)^2;
+     
+%     figure(3)
+%     hold all
+%     plot(Times(k),x^2,'ro','markersize',6)
+%     title('x')
+%     
+%     figure(4)
+%     hold all
+%     plot(Times(k),y^2,'ro','markersize',6)
+%     title('y')
+%     
+%     figure(5)
+%     hold all
+%     plot(Times(k),2*(1-mu)/r1,'ro','markersize',6)
+%     title('r1')
+%     
+%     figure(6)
+%     hold all
+%     plot(Times(k),2*mu/r2,'ro','markersize',6)
+%     title('r2')
+%     
+%     figure(7)
+%     hold all
+%     plot(Times(k),-norm(vJC)^2,'ro','markersize',6)
+%     title('vJC')
 
-%     JC(k) = nE^2*((rECEF_Hopper(k,1)+rE0(1)-rBC(1))^2 + (rECEF_Hopper(k,2)+rE0(2))^2)...
-%         + 2*(uJ/norm(States(k,1:3)) + uE/norm(rECEF_Hopper(k,:))) - (vJC(1)^2 + vJC(2)^2 + vJC(3)^2);
-
-    JC(k) = ((rECEF_Hopper(k,1)+rE0(1)-rBC(1))./rE0(1))^2 + ((rECEF_Hopper(k,2))./rE0(1))^2 ...
-        + 2*(1-mu)/norm(States(k,1:3)./rE0(1)) + 2*mu/norm(rECEF_Hopper(k,:)./rE0(1)) - norm(vJC./rE0(1))^2;
 end
-clear vJC mu
 
-JC(end) - JC(1)
+
+clear x y rBC vBC vJC mu r r1 r2 P 
+
+% figure
+% plot(Times,JC_N)
+% PlotBoi2('Times, sec','Jacobian Constant',16)
+% figure
+% plot(Times,(JC_N-JC_N(1))*100./(JC_N(1)))
+% PlotBoi2('Times, sec','Jacobian Constant %Change',16)
+
+
+% ------------------------------------------------------------------------
+%%% Running Numerical Integration of Analytical Body Acceleration
+% ------------------------------------------------------------------------
+%%% Setting integrator accuracy
+tol = 1E-13;
+options = odeset('Events',@impactEvent_Body_CR3BP,'RelTol',tol,'AbsTol',tol);
+
+%%% Setting Initial State Vector (ECEF)
+X0_ECEF = [rH01 vH01]; % km km/s km km/s
+
+%%% Propagating the State
+[TimesB,StatesB] = ode45(@EH_Body_NumIntegrator_CR3BP,time,X0_ECEF,options,E_radius,uE,uJ,nE,E_a);
+
+% ------------------------------------------------------------------------
+%%% Jacobi Constant (Analytical)
+% ------------------------------------------------------------------------
+JC_B = zeros(length(Times),1);
+mu = uE/(uE + uJ);
+P = 2*pi*sqrt((E_a^3)/uJ);
+vNorm = P/(E_a*2*pi);
+
+for k = 1:length(Times)
+    th = Times(k)*nE; % rads
+    
+    %%% Normalized method
+%     rBC = R3(rE0.*(uE/uJ), th); % Barycenter position (JCI)
+%     vBC = cross(wE',rBC); % Barycenter velocity (JCI) 
+%     
+%     x = (rECEF_Hopper(k,1)+rE0(1)-rBC(1))./rE0(1); % Hopper x-position in rotating barycentric frame
+%     y = (rECEF_Hopper(k,2))./rE0(1); % Hopper y-position in rotating barycentric frame
+%     r1 = norm(States(k,1:3))./rE0(1); % Distance from hopper to Jupiter
+%     r2 = norm(rECEF_Hopper(k,:))./rE0(1); % Distance from hopper to Europa
+%     r = [x, y, 0]; % Hopper position in rotating barycentric frame
+%     vJC = (States(k,4:6) - vBC).*vNorm - cross([0,0,1],r); % Hopper velocity in rotating barycentric frame
+% 
+%     JC(k) = (x)^2 + (y)^2 + 2*(1-mu)/r1 + 2*mu/r2 - norm(vJC)^2; % Jacobian constant
+    
+    %%% Non-Normalized Method
+    rBC = R3(rE0.*(uE/uJ), th); % Barycenter position (JCI)
+    vBC = cross(wE',rBC); % Barycenter velocity (JCI) 
+    x = StatesB(k,1)+rE0(1)-rBC(1);
+    y = StatesB(k,2);
+    r1 = norm(StatesB(k,1:3)+rE0);
+    r2 = norm(StatesB(k,1:3));
+    
+    vJC = StatesB(k,4:6);
+    
+    JC_B(k) = (nE^2)*(x^2 + y^2) + 2*(uJ/r1 + uE/r2) - norm(vJC)^2;
+     
+%     figure(3)
+%     hold all
+%     plot(Times(k),(nE^2)*(x^2),'ro','markersize',6)
+%     title('x')
+%     
+%     figure(4)
+%     hold all
+%     plot(Times(k),(nE^2)*(y^2),'ro','markersize',6)
+%     title('y')
+%     
+%     figure(5)
+%     hold all
+%     plot(Times(k),2*uJ/r1,'ro','markersize',6)
+%     title('r1')
+%     
+%     figure(6)
+%     hold all
+%     plot(Times(k),2*uE/r2,'ro','markersize',6)
+%     title('r2')
+%     
+%     figure(7)
+%     hold all
+%     plot(Times(k),-norm(vJC)^2,'ro','markersize',6)
+%     title('vJC')
+end
+JC_B(end)-JC_B(1)
+clear x y rBC vBC vJC mu r r1 r2 P 
+
 figure
-plot(Times,JC)
+plot(Times,JC_B,'linewidth',2)
+PlotBoi2('Times, sec','Jacobian Constant',16)
+title('Analytical JC')
 figure
-plot(Times,(JC-JC(1))*100./(JC(1)))
+plot(Times,(JC_B-JC_B(1))*100./(JC_B(1)),'linewidth',2)
+PlotBoi2('Times, sec','Jacobian Constant %Change',16)
+title('Analytical JC %Change')
 
 
+%%% Attempt at plotting contour lines
+% x = linspace(-2*J_radius, 1.2*E_a, 1000);
+% y = linspace(-2*E_radius, 2*E_radius, 1000);
+% [X, Y] = meshgrid(x,y);
+% JC_Test = 5.703572862448475e+02;
+% rBC_Test = rE0.*(uE/uJ);
+% 
+% r1 = norm(StatesB(k,1:3)+rE0);
+% r2 = norm(StatesB(k,1:3));
+% 
+% 
+% Z = (nE^2).*(X.^2 + Y.^2) + 2*(uJ./norm([X,Y,0]+rBC_Test) + uE./norm([X,Y,0]-rE0));
+% % (nE^2)*(x^2 + y^2) + 2*(uJ/r1 + uE/r2) - norm(vJC)^2;
+% 
+% % A_Test = JC_Test/(nE^2) + (2/(nE^2))*(uJ/norm(States(1,1:3)) + uE/norm(StatesB(1,1:3)));
+% 
+% 
+% figure
+% contour(X,Y,Z)
 
+rBC_Test = rE0.*(uE/uJ);
+x = linspace(-J_radius, 1.2*E_a, 100);
+y = linspace(-1.5*E_radius, 1.5*E_radius, 100);
+z = zeros(length(x),length(x));
+r1 = zeros(length(x),length(x));
+r2 = zeros(length(x),length(x));
+for xk = 1:length(x)
+    for yk = 1:length(x)
+        r1(xk,yk) = norm([x(xk), y(yk), 0] + rBC_Test);
+        r2(xk,yk) = norm([x(xk), y(yk), 0] - rE0 + rBC_Test);
+        z(xk,yk) = (nE^2)*(x(xk)^2 + y(yk)^2) + 2*(uJ/r1(xk,yk) + uE/r2(xk,yk));
+    end
+end
 
-
-
-
+figure
+% surf(x,y,z)
+contour(x,y,z,'ShowText','on')
+PlotBoi3('X','Y','Z',10)
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -707,6 +794,56 @@ if runECIMovie == 1
             drawnow limitrate
         end
     end
+end
+
+% ------------------------------------------------------------------------
+%%% Comparing Analytical and Numerical Results (kind of)
+% ------------------------------------------------------------------------
+if compareAnalyticalNumericalPlots == 1
+figure
+subplot(3,1,1)
+hold all
+plot3(rECEF_Hopper(:,1),rECEF_Hopper(:,2),rECEF_Hopper(:,3))
+plot3(rECEF_Hopper(1,1),rECEF_Hopper(1,2),rECEF_Hopper(1,3),'o','markersize',10)
+plot3(rECEF_Hopper(end,1),rECEF_Hopper(end,2),rECEF_Hopper(end,3),'+','markersize',10)
+PlotBoi3('X','Y','Z',12)
+title('Numerical Body Position')
+view(0,90); axis equal;
+
+subplot(3,1,2)
+plot3(relVel(1:end-1,1),relVel(1:end-1,2),relVel(1:end-1,3),'.')
+title('Numerical Body Velocity')
+PlotBoi3('X','Y','Z',12)
+view(0,90); axis equal;
+
+subplot(3,1,3)
+plot3(relAcc(1:end-1,1),relAcc(1:end-1,2),relAcc(1:end-1,3),'.')
+title('Numerical Body Acceleration')
+PlotBoi3('X','Y','Z',12)
+view(0,90); axis equal; 
+
+figure
+subplot(3,1,1)
+hold all
+plot3(rAnalytical(:,1),rAnalytical(:,2),rAnalytical(:,3))
+plot3(rAnalytical(1,1),rAnalytical(1,2),rAnalytical(1,3),'o','markersize',10)
+plot3(rAnalytical(end,1),rAnalytical(end,2),rAnalytical(end,3),'+','markersize',10)
+
+title('Analytical Body Position')
+PlotBoi3('X','Y','Z',12)
+view(0,90); axis equal; 
+
+subplot(3,1,2)
+plot3(vAnalytical(:,1),vAnalytical(:,2),vAnalytical(:,3))
+title('Analytical Body Velocity')
+PlotBoi3('X','Y','Z',12)
+view(0,90); axis equal; 
+
+subplot(3,1,3)
+plot3(aECEF_Hopper(:,1),aECEF_Hopper(:,2),aECEF_Hopper(:,3))
+title('Analytical Body Acceleration')
+PlotBoi3('X','Y','Z',12)
+view(0,90); axis equal; 
 end
 
 
