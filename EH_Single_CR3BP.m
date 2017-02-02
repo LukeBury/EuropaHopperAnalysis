@@ -365,7 +365,7 @@ vNorm = P/(E_a*2*pi);
 for k = 1:length(Times)
     th = Times(k)*nE; % rads
     
-    %%% Normalized method
+%     %%% Normalized method
 %     rBC = R3(rE0.*(uE/uJ), th); % Barycenter position (JCI)
 %     vBC = cross(wE',rBC); % Barycenter velocity (JCI) 
 %     
@@ -449,8 +449,8 @@ title('Analytical JC %Change')
 % contour(X,Y,Z)
 
 rBC_Test = rE0.*(uE/uJ);
-x = linspace(-J_radius, 1.2*E_a, 100);
-y = linspace(-1.5*E_radius, 1.5*E_radius, 100);
+x = linspace(E_a - 1.3*E_radius, E_a + 1.3*E_radius, 100);
+y = linspace(-1.3*E_radius, 1.3*E_radius, 100);
 z = zeros(length(x),length(x));
 r1 = zeros(length(x),length(x));
 r2 = zeros(length(x),length(x));
@@ -463,9 +463,51 @@ for xk = 1:length(x)
 end
 
 figure
+hold all
 % surf(x,y,z)
-contour(x,y,z,'ShowText','on')
+
+contour(x,y,z,[567 568 569 570 570.35728 571 874],'ShowText','on')
 PlotBoi3('X','Y','Z',10)
+%%% Plotting Europa equator
+th = 0:.01:2*pi;
+xE = E_radius * cos(th);
+yE = E_radius * sin(th);
+plot(xE + E_a, yE,'b','linewidth',2);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
