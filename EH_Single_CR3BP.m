@@ -14,7 +14,7 @@ scale1 = 8; % Plot Scale (limits = scale1 x E_radius)
 ECIplot = 0; % no = 0, yes = 1
 
 % Plot Jupiter System Inertial?
-JCIplot = 1; % no = 0, yes = 1
+JCIplot = 0; % no = 0, yes = 1
 
 % Plot ECI distance vs Time?
 rECIplot = 0; % no = 0, yes = 1
@@ -61,7 +61,7 @@ vE0_JCI = R3([0, vE, 0],E_theta0); % km
 %%% Initial Hopper State
 % Surface Position (latitude / longitude)
 lat1 = 0; % deg (-90:90)
-lon1 = -45; % deg (-180:180)
+lon1 = -90; % deg (-180:180)
 [rH0_ECEF] = latlon2surfECEF(lat1, lon1, E_radius); % km
 rH0_ECI = R3(rH0_ECEF,E_theta0); % km
 rH0_JCI = rH0_ECI + rE0_JCI; % Making position relative to Jupiter, km
@@ -105,15 +105,15 @@ options = odeset('Events',@impactEvent_CR3BP,'RelTol',tol,'AbsTol',tol);
 % ------------------------------------------------------------------------
 rE_JCI = zeros(size(Times,1),3);
 vE_JCI = zeros(size(Times,1),3);
-rotAngels = zeros(size(Times,1),1);
+rotAngles = zeros(size(Times,1),1);
 for k = 1:size(Times,1)
-    rotAngels(k) = nE * Times(k); % rads
-    rE_JCI(k,:) = R3(rE0_JCI,rotAngels(k)); % km, JCI Europa position vectors
-    vE_JCI(k,:) = R3(vE0_JCI,rotAngels(k)); % km/s, JCI Europa velocity vectors
+    rotAngles(k) = nE * Times(k); % rads
+    rE_JCI(k,:) = R3(rE0_JCI,rotAngles(k)); % km, JCI Europa position vectors
+    vE_JCI(k,:) = R3(vE0_JCI,rotAngles(k)); % km/s, JCI Europa velocity vectors
 end
 %%% Assigning final states of Europa (for simplicity)
 rEf_JCI = rE_JCI(end,:); % km
-vEf_JCI = R3(vE0_JCI,rotAngels(end)); % km/s
+vEf_JCI = R3(vE0_JCI,rotAngles(end)); % km/s
 
 % ------------------------------------------------------------------------
 %%% Calculating rECI positions
@@ -125,13 +125,13 @@ rH_ECI = States(:,1:3) - rE_JCI;
 % ------------------------------------------------------------------------
 rH_ECEF = zeros(size(States,1),3);
 for k = 1:size(Times,1)
-    rH_ECEF(k,:) = R3(rH_ECI(k,:),-rotAngels(k));
+    rH_ECEF(k,:) = R3(rH_ECI(k,:),-rotAngles(k));
 end
 
 % ------------------------------------------------------------------------
 %%% Calculating Hopper Initial and Final Energies in ECI
 % ------------------------------------------------------------------------
-v0_m = norm(vH0_ECI)*1000 % m/s, ECI
+v0_m = norm(vH0_ECI)*1000; % m/s, ECI
 vf_m = norm(States(end,4:6) - vEf_JCI)*1000; % m/s, ECI
 dVelocity = vf_m - v0_m; % m/s
 KE0 = .5*v0_m^2;
@@ -141,18 +141,12 @@ dKE = KEf - KE0; % J/kg .... m^2/s^2
 % ------------------------------------------------------------------------
 %%% Calculating Change in Hopper Surface Angle & Distance Traveled
 % ------------------------------------------------------------------------
-%%% Defining beginning and ending states
-Pos0 = States(1,1:3) - rE0_JCI; % ECI / ECEF
-Posf = States(end,1:3) - rEf_JCI; % ECI
-% Rotating Final Position into ECEF
-Posf = R3(Posf,-rotAngels(end)); % ECEF
-
-%%% Angle change and surface distance traveled
-AngChange = atan2(norm(cross(Pos0,Posf)),dot(Pos0,Posf))*180/pi; % deg
+%%% Angle change and surface distance traveled in ECEF
+AngChange = atan2(norm(cross(rH_ECEF(1,:),rH_ECEF(end,:))),dot(rH_ECEF(1,:),rH_ECEF(end,:)))*180/pi; % deg
 Traveled = (AngChange*pi/180)*E_radius*1000; % m
 
 %%% Finding direction traveled
-[lat2, lon2] = ECEF2latlon(Posf); % rad
+[lat2, lon2] = ECEF2latlon(rH_ECEF(end,:)); % rad
 lat2 = lat2 * 180/pi; % deg
 lon2 = lon2 * 180/pi; % deg
 az = azimuth(lat1,lon1,lat2,lon2); % deg
@@ -167,28 +161,38 @@ end
 %%% Calculating ECEF Hopper Accelerations
 % ------------------------------------------------------------------------
 %%% Initializing ECI and ECEF acceleration matrices
-aH_ECI = zeros(size(States,1),3); % km/s^2
-aH_ECEF = zeros(size(States,1),3); % km/s^2
+aH_JCI = zeros(size(States,1),3); % km/s^2
+aH_ECEF_I = zeros(size(States,1),3); % km/s^2
+
+vH_B_tempI = zeros(length(Times),3);
+t4_tempI = zeros(length(Times),3);
+t3_tempI = zeros(length(Times),3);
+aH_JCI_tempI = zeros(length(Times),3);
+aE_tempI = zeros(length(Times),3);
 
 %%% Calculating ECI and ECEF Hopper accelerations at each time step
 for k = 1:length(Times)        
     %%% Determining Inertial Accelerations in Body Frame
-    aH_ECI(k,:) = (-uJ/(norm(States(k,1:3))^3))*States(k,1:3)...
+    aH_JCI(k,:) = (-uJ/(norm(States(k,1:3))^3))*States(k,1:3)...
         + (-uE/(norm(rH_ECI(k,:))^3))*rH_ECI(k,:); % km/s^2
+    aH_JCI_tempI(k,:) = aH_JCI(k,:);
     
     %%% Determining Inertial Velocities in Body Frame
     vH_B = States(k,4:6) - vE_JCI(k,:) - cross(wE,rH_ECEF(k,:)); % km/s
+    vH_B_tempI(k,:) = vH_B;
     
     %%% Determining Acceleration of Europa in JCI
-    aE_J = (-uJ/(norm(rE_JCI(k,:))^3))*rE_JCI(k,:);
+    aE_tempI = (-uJ/(norm(rE_JCI(k,:))^3))*rE_JCI(k,:);
     
+    t3_tempI = 2*cross(wE',vH_B);
+    t4_tempI = cross(wE',cross(wE',rH_ECEF(k,:)));
     %%% Determining Body Frame Acceleration
-    aH_ECEF(k,:) = aH_ECI(k,:) - aE_J - 2*cross(wE',vH_B) - cross(wE',cross(wE',rH_ECEF(k,:))); % km/s^2
+    aH_ECEF_I(k,:) = aH_JCI(k,:) - aE_tempI - 2*cross(wE',vH_B) - cross(wE',cross(wE',rH_ECEF(k,:))); % km/s^2
     
 end
-clear vH_B aE_J
+clear vH_B
 
-vAnalytical = cumtrapz(Times, aH_ECEF(:,:)) + vH0_ECEF;
+vAnalytical = cumtrapz(Times, aH_ECEF_I(:,:)) + vH0_ECEF;
 rAnalytical = cumtrapz(Times, vAnalytical(:,:)) + rH0_ECEF;
 
 % ------------------------------------------------------------------------
@@ -299,31 +303,6 @@ for k = 1:length(Times)
     vJC = States(k,4:6) - vBC - cross(wE',r);
     
     JC_N(k) = (nE^2)*(x^2 + y^2) + 2*(uJ/r1 + uE/r2) - norm(vJC)^2;
-     
-%     figure(3)
-%     hold all
-%     plot(Times(k),x^2,'ro','markersize',6)
-%     title('x')
-%     
-%     figure(4)
-%     hold all
-%     plot(Times(k),y^2,'ro','markersize',6)
-%     title('y')
-%     
-%     figure(5)
-%     hold all
-%     plot(Times(k),2*(1-mu)/r1,'ro','markersize',6)
-%     title('r1')
-%     
-%     figure(6)
-%     hold all
-%     plot(Times(k),2*mu/r2,'ro','markersize',6)
-%     title('r2')
-%     
-%     figure(7)
-%     hold all
-%     plot(Times(k),-norm(vJC)^2,'ro','markersize',6)
-%     title('vJC')
 
 end
 
@@ -346,10 +325,112 @@ tol = 1E-13;
 options = odeset('Events',@impactEvent_Body_CR3BP,'RelTol',tol,'AbsTol',tol);
 
 %%% Setting Initial State Vector (ECEF)
-X0_ECEF = [rH0_ECEF vH0_ECEF]; % km km/s km km/s
+X0_ECEF = [rH0_ECEF vH0_ECEF]; % km, km/s
 
 %%% Propagating the State
 [TimesB,StatesB] = ode45(@EH_Body_NumIntegrator_CR3BP,time,X0_ECEF,options,E_radius,uE,uJ,nE,E_a);
+
+% rE_JCI_tempB = zeros(length(Times),3);
+% rH_ECI_tempB = zeros(length(Times),3);
+% rH_JCI_tempB = zeros(length(Times),3);
+t3_tempB = zeros(length(Times),3);
+t4_tempB = zeros(length(Times),3);
+aH_JCI_tempB = zeros(length(Times),3);
+aE_tempB = zeros(length(Times),3);
+
+aH_ECEF_B = zeros(length(Times),3);
+for k = 1:length(TimesB)
+    %%% Unpack the Hopper state vector (ECEF)
+    rH_ECEF_tempB = StatesB(k,1:3); % Hopper Position, km
+    vH_ECEF_tempB = StatesB(k,4:6); % Hopper Velocity, km/s
+    
+    %%% Creating Europa Position (JCI)
+    rE_JCI_tempB = [E_a,0 0]; % km
+    rE_JCI_tempB = R3(rE_JCI_tempB,rotAngles(k)); % km
+    
+    %%% Creating Hopper Position (ECI)
+    rH_ECI_tempB = R3(rH_ECEF_tempB,rotAngles(k)); % km
+    
+    %%% Creating Hopper Position (JCI)
+    rH_JCI_tempB = rH_ECI_tempB + rE_JCI_tempB; % km
+    
+    %%% Determining Inertial Accelerations (JCI)
+    aH_JCI_tempB(k,:) = (-uJ/(norm(rH_JCI_tempB)^3))*rH_JCI_tempB...
+        + (-uE/(norm(rH_ECI_tempB)^3))*rH_ECI_tempB; % km/s^2
+    
+    %%% Determining Acceleration of Europa (JCI)
+    aE_tempB(k,:) = (-uJ/(norm(rE_JCI_tempB)^3))*rE_JCI_tempB;
+    
+    t3_tempB(k,:) = 2*cross(wE',vH_ECEF_tempB);
+    t4_tempB(k,:) = cross(wE',cross(wE',rH_ECEF_tempB));
+    %%% Storing Body-Frame Acceleration (ECEF)
+    aH_ECEF_B(k,:) = aH_JCI_tempB(k,:) - aE_tempB(k,:) - 2*cross(wE',vH_ECEF_tempB) - cross(wE',cross(wE',rH_ECEF_tempB)); % km/s^2
+end
+clear rH_ECEF_tempB vH_ECEF_tempb rE_JCI_temp rH_ECI_temp rH_JCI_temp aH_JCI_temp aE_temp
+
+figure
+subplot(3,1,1)
+plot(Times,aH_JCI_tempI(:,1)-aH_JCI_tempB(:,1))
+title('aH-JCI-temp Diff')
+subplot(3,1,2)
+plot(Times,aH_JCI_tempI(:,2)-aH_JCI_tempB(:,2))
+subplot(3,1,3)
+plot(Times,aH_JCI_tempI(:,3)-aH_JCI_tempB(:,3))
+
+figure
+subplot(3,1,1)
+plot(Times,aE_tempI(:,1)-aE_tempB(:,1))
+title('aE-temp Diff')
+subplot(3,1,2)
+plot(Times,aE_tempI(:,2)-aE_tempB(:,2))
+subplot(3,1,3)
+plot(Times,aE_tempI(:,3)-aE_tempB(:,3))
+
+figure
+subplot(3,1,1)
+plot(Times,t3_tempI(:,1)-t3_tempB(:,1))
+title('t3 Diff')
+subplot(3,1,2)
+plot(Times,t3_tempI(:,2)-t3_tempB(:,2))
+subplot(3,1,3)
+plot(Times,t3_tempI(:,3)-t3_tempB(:,3))
+
+figure
+subplot(3,1,1)
+plot(Times,t4_tempI(:,1)-t4_tempB(:,1))
+title('t4 Diff')
+subplot(3,1,2)
+plot(Times,t4_tempI(:,2)-t4_tempB(:,2))
+subplot(3,1,3)
+plot(Times,t4_tempI(:,3)-t4_tempB(:,3))
+
+figure
+subplot(3,1,1)
+plot(Times,vH_B_tempI(:,1) - StatesB(:,4))
+title('vH-B Diff')
+subplot(3,1,2)
+plot(Times,vH_B_tempI(:,2) - StatesB(:,5))
+subplot(3,1,3)
+plot(Times,vH_B_tempI(:,3) - StatesB(:,6))
+
+% figure
+% subplot(3,1,1)
+% plot(Times,rH_ECEF(:,1) - StatesB(:,1))
+% title('Pos Diff')
+% subplot(3,1,2)
+% plot(Times,rH_ECEF(:,2) - StatesB(:,2))
+% subplot(3,1,3)
+% plot(Times,rH_ECEF(:,3) - StatesB(:,3))
+% 
+% figure
+% subplot(3,1,1)
+% plot(Times,aH_ECEF_I(:,1) - aH_ECEF_B(:,1))
+% title('Acc Diff')
+% subplot(3,1,2)
+% plot(Times,aH_ECEF_I(:,2) - aH_ECEF_B(:,2))
+% subplot(3,1,3)
+% plot(Times,aH_ECEF_I(:,3) - aH_ECEF_B(:,3))
+
 
 % ------------------------------------------------------------------------
 %%% Jacobi Constant (Analytical)
@@ -459,17 +540,16 @@ for xk = 1:length(x)
     end
 end
 
-figure
-hold all
-% surf(x,y,z)
-
-contour(x,y,z,[567 568 569 570 570.35728 571 874],'ShowText','on')
-PlotBoi3('X','Y','Z',10)
-%%% Plotting Europa equator
-th = 0:.01:2*pi;
-xE = E_radius * cos(th);
-yE = E_radius * sin(th);
-plot(xE + E_a, yE,'b','linewidth',2);
+% figure
+% hold all
+% % surf(x,y,z)
+% contour(x,y,z,[567 568 569 570 570.35728 571 874],'ShowText','on')
+% PlotBoi3('X','Y','Z',10)
+% %%% Plotting Europa equator
+% th = 0:.01:2*pi;
+% xE = E_radius * cos(th);
+% yE = E_radius * sin(th);
+% plot(xE + E_a, yE,'b','linewidth',2);
 
 
 
@@ -879,7 +959,7 @@ PlotBoi3('X','Y','Z',12)
 view(0,90); axis equal; 
 
 subplot(3,1,3)
-plot3(aH_ECEF(:,1),aH_ECEF(:,2),aH_ECEF(:,3))
+plot3(aH_ECEF_I(:,1),aH_ECEF_I(:,2),aH_ECEF_I(:,3))
 title('Analytical Body Acceleration')
 PlotBoi3('X','Y','Z',12)
 view(0,90); axis equal; 
