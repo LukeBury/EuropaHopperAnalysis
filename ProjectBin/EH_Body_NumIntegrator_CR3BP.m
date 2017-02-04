@@ -1,7 +1,7 @@
 % ------------------------------------------------------------------------
-%%% Europa-and-Jupiter Numerical Integrator
+%%% Body Frame Numerical Integrator
 % ------------------------------------------------------------------------
-function [ dY ] = EH_NumIntegrator_CR3BP(t,Y,E_radius,uE,uJ,nE,E_a)
+function [ dY ] = EH_Body_NumIntegrator_CR3BP(t,Y,E_radius,uE,uJ,nE,E_a)
 dY = zeros(6,1);
 
 %%% Unpack the Hopper state vector (ECEF)
@@ -33,5 +33,3 @@ ddyH = aH_JCI - aE - 2*cross([0;0;nE],dyH) - cross([0;0;nE],cross([0;0;nE],yH));
 dY(1:3) = dyH; % km/s
 dY(4:6) = ddyH; % km/s^2
 end
-
-

@@ -1,5 +1,5 @@
 % ------------------------------------------------------------------------
-%%% Europa-and-Jupiter Numerical Integrator
+%%% Inertial Numerical Integrator
 % ------------------------------------------------------------------------
 function [ dY ] = EH_NumIntegrator_CR3BP(t,Y,E_radius,uE,uJ,nE,E_a)
 dY = zeros(6,1);
