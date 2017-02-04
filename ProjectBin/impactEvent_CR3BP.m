@@ -7,10 +7,10 @@ ta = nE*t; % rads
 rE = [E_a; 0; 0]; % km
 rE = R3(rE,ta); % km
 
-%%% Unpack the Hopper position vector
-yH = Y(1:3);
+%%% Unpack the Hopper position vector (JCI)
+yH = Y(1:3); % km
 
-%%% Europa-Centric hopper position
+%%% Europa-Centric hopper position (ECI)
 rH = yH - rE; % km
 
 %%% Event function watching for when "value" = 0 (Hopper impacts Europa)
