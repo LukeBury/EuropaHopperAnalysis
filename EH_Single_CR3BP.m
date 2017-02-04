@@ -56,44 +56,42 @@ wE = [0; 0; nE]; % Rot. velocity (tidally locked)
 %%% Intial Europa State
 E_theta0 = 0*(pi/180); % Initial position of Europa about Jupiter from +x, rads
 rE0_JCI = R3([E_a, 0, 0],E_theta0); % km
-vE0_JCI = R3([0, vE, 0],E_theta0); % km
+vE0_JCI = R3([0, vE, 0],E_theta0); % km/s
 
 %%% Initial Hopper State
 % Surface Position (latitude / longitude)
 lat1 = 0; % deg (-90:90)
-lon1 = -90; % deg (-180:180)
+lon1 = -45; % deg (-180:180)
 [rH0_ECEF] = latlon2surfECEF(lat1, lon1, E_radius); % km
 rH0_ECI = R3(rH0_ECEF,E_theta0); % km
-rH0_JCI = rH0_ECI + rE0_JCI; % Making position relative to Jupiter, km
+rH0_JCI = rH0_ECI + rE0_JCI; % km
 
 %%% Radial Velocity (Europa relative)
 v_mag = .015; % km/s
 vH0_ECEF = (rH0_ECEF/norm(rH0_ECEF))*v_mag;
 % 
 % %%% Vector Velocity (Europa relative)
-% vH01 = [.2, -vE/7.9, .8]; % km/s (-45,0)
-% % vH01 = [-1.7, -.49, .6]; % km/s (-180,0)
-% % vH01 = [-1.7, -.2, .6]; % km/s (-180,0)
-% % vH01 = [.2, -1.6, 1]; % km/s (-180,0)
+% vH0_ECEF = [.2, -vE/7.9, .8]; % km/s (-45,0)
+% % vH0_ECEF = [-1.7, -.49, .6]; % km/s (-180,0)
+% % vH0_ECEF = [-1.7, -.2, .6]; % km/s (-180,0)
+% % vH0_ECEF = [.2, -1.6, 1]; % km/s (-180,0)
 
 %%% Creating ECI and JCI Initial Hopper Velocity
-vH0_ECI = R3(vH0_ECEF,E_theta0) + cross(wE,rH0_ECI); % Adding rotational velocity component, km/s
-vH0_JCI = vH0_ECI + vE0_JCI; % Making velocity relative to Jupiter, km/s
-
-
-%%% Setting Initial State Vector (JCI)
-X0_JCI = [rH0_JCI vH0_JCI]; % km km/s km km/s
-
+vH0_ECI = R3(vH0_ECEF,E_theta0) + cross(wE,rH0_ECI); % km/s
+vH0_JCI = vH0_ECI + vE0_JCI; % km/s
 
 % ------------------------------------------------------------------------
 %%% Propagating the State with Numerical Integration
 % ------------------------------------------------------------------------
-%%% Setting integrator accuracy
+%%% Setting integrator options
 tol = 1E-13;
-options = odeset('Events',@impactEvent_CR3BP,'RelTol',tol,'AbsTol',tol);
+optionsI = odeset('Events',@impactEvent_CR3BP,'RelTol',tol,'AbsTol',tol);
+
+%%% Setting Initial State Vector (JCI)
+X0_JCI = [rH0_JCI vH0_JCI]; % km km/s
 
 %%% Propagating the State
-[Times,States] = ode45(@EH_NumIntegrator_CR3BP,time,X0_JCI,options,E_radius,uE,uJ,nE,E_a);
+[Times,StatesI] = ode45(@EH_NumIntegrator_CR3BP,time,X0_JCI,optionsI,E_radius,uE,uJ,nE,E_a);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -103,10 +101,10 @@ options = odeset('Events',@impactEvent_CR3BP,'RelTol',tol,'AbsTol',tol);
 % ------------------------------------------------------------------------
 %%% Calculating Europa states
 % ------------------------------------------------------------------------
-rE_JCI = zeros(size(Times,1),3);
-vE_JCI = zeros(size(Times,1),3);
-rotAngles = zeros(size(Times,1),1);
-for k = 1:size(Times,1)
+rE_JCI = zeros(length(Times),3);
+vE_JCI = zeros(length(Times),3);
+rotAngles = zeros(length(Times),1);
+for k = 1:length(Times)
     rotAngles(k) = nE * Times(k); % rads
     rE_JCI(k,:) = R3(rE0_JCI,rotAngles(k)); % km, JCI Europa position vectors
     vE_JCI(k,:) = R3(vE0_JCI,rotAngles(k)); % km/s, JCI Europa velocity vectors
@@ -118,13 +116,13 @@ vEf_JCI = R3(vE0_JCI,rotAngles(end)); % km/s
 % ------------------------------------------------------------------------
 %%% Calculating rECI positions
 % ------------------------------------------------------------------------
-rH_ECI = States(:,1:3) - rE_JCI;
+rH_ECI = StatesI(:,1:3) - rE_JCI;
 
 % ------------------------------------------------------------------------
 %%% Calculating rECEF positions
 % ------------------------------------------------------------------------
-rH_ECEF = zeros(size(States,1),3);
-for k = 1:size(Times,1)
+rH_ECEF = zeros(length(Times),3);
+for k = 1:length(Times)
     rH_ECEF(k,:) = R3(rH_ECI(k,:),-rotAngles(k));
 end
 
@@ -132,7 +130,7 @@ end
 %%% Calculating Hopper Initial and Final Energies in ECI
 % ------------------------------------------------------------------------
 v0_m = norm(vH0_ECI)*1000; % m/s, ECI
-vf_m = norm(States(end,4:6) - vEf_JCI)*1000; % m/s, ECI
+vf_m = norm(StatesI(end,4:6) - vEf_JCI)*1000; % m/s, ECI
 dVelocity = vf_m - v0_m; % m/s
 KE0 = .5*v0_m^2;
 KEf = .5*vf_m^2;
@@ -161,8 +159,8 @@ end
 %%% Calculating ECEF Hopper Accelerations
 % ------------------------------------------------------------------------
 %%% Initializing ECI and ECEF acceleration matrices
-aH_JCI = zeros(size(States,1),3); % km/s^2
-aH_ECEF_I = zeros(size(States,1),3); % km/s^2
+aH_JCI = zeros(length(Times),3); % km/s^2
+aH_ECEF_I = zeros(length(Times),3); % km/s^2
 
 vH_B_tempI = zeros(length(Times),3);
 t4_tempI = zeros(length(Times),3);
@@ -173,12 +171,12 @@ aE_tempI = zeros(length(Times),3);
 %%% Calculating ECI and ECEF Hopper accelerations at each time step
 for k = 1:length(Times)        
     %%% Determining Inertial Accelerations in Body Frame
-    aH_JCI(k,:) = (-uJ/(norm(States(k,1:3))^3))*States(k,1:3)...
+    aH_JCI(k,:) = (-uJ/(norm(StatesI(k,1:3))^3))*StatesI(k,1:3)...
         + (-uE/(norm(rH_ECI(k,:))^3))*rH_ECI(k,:); % km/s^2
     aH_JCI_tempI(k,:) = aH_JCI(k,:);
     
     %%% Determining Inertial Velocities in Body Frame
-    vH_B = States(k,4:6) - vE_JCI(k,:) - cross(wE,rH_ECEF(k,:)); % km/s
+    vH_B = StatesI(k,4:6) - vE_JCI(k,:) - cross(wE,rH_ECEF(k,:)); % km/s
     vH_B_tempI(k,:) = vH_B;
     
     %%% Determining Acceleration of Europa in JCI
@@ -297,10 +295,10 @@ for k = 1:length(Times)
 %     r = R3(States(k,1:3)-rBC,-th)
 %     x = r(1);
 %     y = r(2);
-    r1 = norm(States(k,1:3));
+    r1 = norm(StatesI(k,1:3));
     r2 = norm(rH_ECEF(k,:));
     
-    vJC = States(k,4:6) - vBC - cross(wE',r);
+    vJC = StatesI(k,4:6) - vBC - cross(wE',r);
     
     JC_N(k) = (nE^2)*(x^2 + y^2) + 2*(uJ/r1 + uE/r2) - norm(vJC)^2;
 
@@ -320,15 +318,14 @@ clear x y rBC vBC vJC mu r r1 r2 P
 % ------------------------------------------------------------------------
 %%% Running Numerical Integration of Analytical Body Acceleration
 % ------------------------------------------------------------------------
-%%% Setting integrator accuracy
-tol = 1E-13;
-options = odeset('Events',@impactEvent_Body_CR3BP,'RelTol',tol,'AbsTol',tol);
+%%% Setting integrator options
+optionsB = odeset('Events',@impactEvent_Body_CR3BP,'RelTol',tol,'AbsTol',tol);
 
 %%% Setting Initial State Vector (ECEF)
 X0_ECEF = [rH0_ECEF vH0_ECEF]; % km, km/s
 
 %%% Propagating the State
-[TimesB,StatesB] = ode45(@EH_Body_NumIntegrator_CR3BP,time,X0_ECEF,options,E_radius,uE,uJ,nE,E_a);
+[TimesB,StatesB] = ode45(@EH_Body_NumIntegrator_CR3BP,time,X0_ECEF,optionsB,E_radius,uE,uJ,nE,E_a);
 
 % rE_JCI_tempB = zeros(length(Times),3);
 % rH_ECI_tempB = zeros(length(Times),3);
@@ -493,7 +490,6 @@ for k = 1:length(Times)
 %     plot(Times(k),-norm(vJC)^2,'ro','markersize',6)
 %     title('vJC')
 end
-JC_B(end)-JC_B(1)
 clear x y rBC vBC vJC mu r r1 r2 P 
 
 figure
@@ -713,7 +709,7 @@ if JCIplot == 1
 
     %%% Plotting Hopper motion
     % p3 = plot3(r_Hopper(:,1),r_Hopper(:,2),r_Hopper(:,3),'m','linewidth',trackWidth,'markersize',5);
-    plot3(States(:,1),States(:,2),States(:,3),'m','linewidth',trackWidth,'markersize',5);
+    plot3(StatesI(:,1),StatesI(:,2),StatesI(:,3),'m','linewidth',trackWidth,'markersize',5);
 
     %%% Plotting Europa motion
     plot3(rE_JCI(:,1),rE_JCI(:,2),rE_JCI(:,3),'--r','linewidth',trackWidth);
@@ -763,7 +759,7 @@ if rECIplot == 1
 figure
 hold all
 plot(Times,ones(size(Times)).*E_radius,'--b','linewidth',1.5)
-plot(Times,arrayfun(@(x) norm(rH_ECI(x,:)), 1:size(rH_ECI,1))','m','linewidth',trackWidth)
+plot(Times,arrayfun(@(x) norm(rH_ECI(x,:)), 1:length(Times))','m','linewidth',trackWidth)
 PlotBoi2('Time, sec','Distance to Europa Center, km',16)
 legend('Europa Mean Radius')
 end
@@ -824,8 +820,8 @@ end
 %%% ECEF Movie
 if runECEFMovie == 1
     figure
-    for i = 1:size(States,1) %size(States,1)
-        if rem(i,framespeed) == 0 || i == size(States,1)
+    for i = 1:length(Times) %size(States,1)
+        if rem(i,framespeed) == 0 || i == length(Times)
             clf
             hold all
             %%% Plotting Europa motion
@@ -870,8 +866,8 @@ end
 %%% ECI Movie
 if runECIMovie == 1
     figure
-    for i = 1:size(States,1) %size(States,1)
-        if rem(i,framespeed) == 0 || i == size(States,1)
+    for i = 1:length(Times) %size(States,1)
+        if rem(i,framespeed) == 0 || i == length(Times)
             clf
             hold all
             %%% Plotting Europa motion
@@ -1005,5 +1001,5 @@ fprintf('-Europa starts on +X JCI axis (CURRENTLY NECESSARY - I think from lat/l
 fprintf('-Europa and Jupiter are point masses at centers\n')
 fprintf('-Europa is spherical\n')
 fprintf('-Europa in circular orbit\n')
-fprintf('-NO SMALLER THAN 1 m/s UNLESS SMALLER TIME STEP!\n')
+fprintf('-Jacobian Constant calculation assumes z = 0 (Equatorial)\n')
 fprintf('-Plenty of others...\n')
