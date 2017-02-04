@@ -1,7 +1,7 @@
 % ------------------------------------------------------------------------
-%%% Europa-and-Jupiter Numerical Integrator
+%%% Inertial Frame Impact Event
 % ------------------------------------------------------------------------
-function [value, isterminal, direction] = impactEvent(t,Y,E_radius,uE,uJ,nE,E_a)
+function [value, isterminal, direction] = impactEvent_CR3BP(t,Y,E_radius,uE,uJ,nE,E_a)
 %%% Creating Europa Position
 ta = nE*t; % rads
 rE = [E_a; 0; 0]; % km

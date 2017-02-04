@@ -1,7 +1,7 @@
 % ------------------------------------------------------------------------
-%%% Europa-and-Jupiter Numerical Integrator
+%%% Body Frame Impact Event
 % ------------------------------------------------------------------------
-function [value, isterminal, direction] = impactEvent(t,Y,E_radius,uE,uJ,nE,E_a)
+function [value, isterminal, direction] = impactEvent_Body_CR3BP(t,Y,E_radius,uE,uJ,nE,E_a)
 %%% Unpack the Hopper position vector (ECEF)
 yH = Y(1:3);
 
