@@ -91,7 +91,7 @@ optionsI = odeset('Events',@impactEvent_CR3BP,'RelTol',tol,'AbsTol',tol);
 X0_JCI = [rH0_JCI vH0_JCI]; % km km/s
 
 %%% Propagating the State
-[Times,StatesI] = ode45(@EH_NumIntegrator_CR3BP,time,X0_JCI,optionsI,RE,uE,uJ,nE,aE,E_theta0);
+[TimesI,StatesI] = ode45(@EH_NumIntegrator_CR3BP,time,X0_JCI,optionsI,RE,uE,uJ,nE,aE,E_theta0);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -101,11 +101,11 @@ X0_JCI = [rH0_JCI vH0_JCI]; % km km/s
 % ------------------------------------------------------------------------
 %%% Calculating Europa states
 % ------------------------------------------------------------------------
-rE_JCI = zeros(length(Times),3);
-vE_JCI = zeros(length(Times),3);
-rotAngles = zeros(length(Times),1);
-for k = 1:length(Times)
-    rotAngles(k) = nE * Times(k); % rads
+rE_JCI = zeros(length(TimesI),3);
+vE_JCI = zeros(length(TimesI),3);
+rotAngles = zeros(length(TimesI),1);
+for k = 1:length(TimesI)
+    rotAngles(k) = nE * TimesI(k); % rads
     rE_JCI(k,:) = R3(rE0_JCI,rotAngles(k)); % km, JCI Europa position vectors
     vE_JCI(k,:) = R3(vE0_JCI,rotAngles(k)); % km/s, JCI Europa velocity vectors
 end
@@ -121,8 +121,8 @@ rH_ECI = StatesI(:,1:3) - rE_JCI;
 % ------------------------------------------------------------------------
 %%% Calculating rECEF positions
 % ------------------------------------------------------------------------
-rH_ECEF = zeros(length(Times),3);
-for k = 1:length(Times)
+rH_ECEF = zeros(length(TimesI),3);
+for k = 1:length(TimesI)
     rH_ECEF(k,:) = R3(rH_ECI(k,:),-rotAngles(k));
 end
 
@@ -159,17 +159,17 @@ end
 %%% Calculating ECEF Hopper Accelerations
 % ------------------------------------------------------------------------
 %%% Initializing ECI and ECEF acceleration matrices
-aH_JCI = zeros(length(Times),3); % km/s^2
-aH_ECEF_I = zeros(length(Times),3); % km/s^2
+aH_JCI = zeros(length(TimesI),3); % km/s^2
+aH_ECEF_I = zeros(length(TimesI),3); % km/s^2
 
-vH_B_tempI = zeros(length(Times),3);
-t4_tempI = zeros(length(Times),3);
-t3_tempI = zeros(length(Times),3);
-aH_JCI_tempI = zeros(length(Times),3);
-aE_tempI = zeros(length(Times),3);
+vH_B_tempI = zeros(length(TimesI),3);
+t4_tempI = zeros(length(TimesI),3);
+t3_tempI = zeros(length(TimesI),3);
+aH_JCI_tempI = zeros(length(TimesI),3);
+aE_tempI = zeros(length(TimesI),3);
 
 %%% Calculating ECI and ECEF Hopper accelerations at each time step
-for k = 1:length(Times)        
+for k = 1:length(TimesI)        
     %%% Determining Inertial Accelerations in Body Frame
     aH_JCI(k,:) = (-uJ/(norm(StatesI(k,1:3))^3))*StatesI(k,1:3)...
         + (-uE/(norm(rH_ECI(k,:))^3))*rH_ECI(k,:); % km/s^2
@@ -190,8 +190,8 @@ for k = 1:length(Times)
 end
 clear vH_B
 fprintf('Clear some of these vars after testing\n')
-vAnalytical = cumtrapz(Times, aH_ECEF_I(:,:)) + vH0_ECEF;
-rAnalytical = cumtrapz(Times, vAnalytical(:,:)) + rH0_ECEF;
+vAnalytical = cumtrapz(TimesI, aH_ECEF_I(:,:)) + vH0_ECEF;
+rAnalytical = cumtrapz(TimesI, vAnalytical(:,:)) + rH0_ECEF;
 
 % ------------------------------------------------------------------------
 %%% Calculating Initial Tidal Accelerations
@@ -264,14 +264,14 @@ aEJ0_JCI = (-uJ/(norm(rE0_JCI)^3))*rE0_JCI; % Europa --> Jupiter, km/s^2
 % ------------------------------------------------------------------------
 %%% Jacobi Constant (Numerical)
 % ------------------------------------------------------------------------
-JC_N = zeros(length(Times),1);
+JC_N = zeros(length(TimesI),1);
 % rBC = rE0.*(uE/uJ);
 mu = uE/(uE + uJ);
 P = 2*pi*sqrt((aE^3)/uJ);
 vNorm = P/(aE*2*pi);
 
-for k = 1:length(Times)
-    th = Times(k)*nE; % rads
+for k = 1:length(TimesI)
+    th = TimesI(k)*nE; % rads
     
     %%% Normalized method
 %     rBC = R3(rE0.*(uE/uJ), th); % Barycenter position (JCI)
@@ -327,15 +327,20 @@ X0_ECEF = [rH0_ECEF vH0_ECEF]; % km, km/s
 %%% Propagating the State
 [TimesB,StatesB] = ode45(@EH_Body_NumIntegrator_CR3BP,time,X0_ECEF,optionsB,RE,uE,uJ,nE,aE,E_theta0);
 
+%%% Checking that solutions are same length
+if length(TimesI) ~= length(TimesB)
+    warning('Time discrepancy in simulations')
+end
+
 % rE_JCI_tempB = zeros(length(Times),3);
 % rH_ECI_tempB = zeros(length(Times),3);
 % rH_JCI_tempB = zeros(length(Times),3);
-t3_tempB = zeros(length(Times),3);
-t4_tempB = zeros(length(Times),3);
-aH_JCI_tempB = zeros(length(Times),3);
-aE_tempB = zeros(length(Times),3);
+t3_tempB = zeros(length(TimesI),3);
+t4_tempB = zeros(length(TimesI),3);
+aH_JCI_tempB = zeros(length(TimesI),3);
+aE_tempB = zeros(length(TimesI),3);
 
-aH_ECEF_B = zeros(length(Times),3);
+aH_ECEF_B = zeros(length(TimesI),3);
 for k = 1:length(TimesB)
     %%% Unpack the Hopper state vector (ECEF)
     rH_ECEF_tempB = StatesB(k,1:3); % Hopper Position, km
@@ -367,48 +372,48 @@ clear rH_ECEF_tempB vH_ECEF_tempb rE_JCI_temp rH_ECI_temp rH_JCI_temp aH_JCI_tem
 
 figure
 subplot(3,1,1)
-plot(Times,aH_JCI_tempI(:,1)-aH_JCI_tempB(:,1))
+plot(TimesI,aH_JCI_tempI(:,1)-aH_JCI_tempB(:,1))
 title('aH-JCI-temp Diff')
 subplot(3,1,2)
-plot(Times,aH_JCI_tempI(:,2)-aH_JCI_tempB(:,2))
+plot(TimesI,aH_JCI_tempI(:,2)-aH_JCI_tempB(:,2))
 subplot(3,1,3)
-plot(Times,aH_JCI_tempI(:,3)-aH_JCI_tempB(:,3))
+plot(TimesI,aH_JCI_tempI(:,3)-aH_JCI_tempB(:,3))
 
 figure
 subplot(3,1,1)
-plot(Times,aE_tempI(:,1)-aE_tempB(:,1))
+plot(TimesI,aE_tempI(:,1)-aE_tempB(:,1))
 title('aE-temp Diff')
 subplot(3,1,2)
-plot(Times,aE_tempI(:,2)-aE_tempB(:,2))
+plot(TimesI,aE_tempI(:,2)-aE_tempB(:,2))
 subplot(3,1,3)
-plot(Times,aE_tempI(:,3)-aE_tempB(:,3))
+plot(TimesI,aE_tempI(:,3)-aE_tempB(:,3))
 
 figure
 subplot(3,1,1)
-plot(Times,t3_tempI(:,1)-t3_tempB(:,1))
+plot(TimesI,t3_tempI(:,1)-t3_tempB(:,1))
 title('t3 Diff')
 subplot(3,1,2)
-plot(Times,t3_tempI(:,2)-t3_tempB(:,2))
+plot(TimesI,t3_tempI(:,2)-t3_tempB(:,2))
 subplot(3,1,3)
-plot(Times,t3_tempI(:,3)-t3_tempB(:,3))
+plot(TimesI,t3_tempI(:,3)-t3_tempB(:,3))
 
 figure
 subplot(3,1,1)
-plot(Times,t4_tempI(:,1)-t4_tempB(:,1))
+plot(TimesI,t4_tempI(:,1)-t4_tempB(:,1))
 title('t4 Diff')
 subplot(3,1,2)
-plot(Times,t4_tempI(:,2)-t4_tempB(:,2))
+plot(TimesI,t4_tempI(:,2)-t4_tempB(:,2))
 subplot(3,1,3)
-plot(Times,t4_tempI(:,3)-t4_tempB(:,3))
+plot(TimesI,t4_tempI(:,3)-t4_tempB(:,3))
 
 figure
 subplot(3,1,1)
-plot(Times,vH_B_tempI(:,1) - StatesB(:,4))
+plot(TimesI,vH_B_tempI(:,1) - StatesB(:,4))
 title('vH-B Diff')
 subplot(3,1,2)
-plot(Times,vH_B_tempI(:,2) - StatesB(:,5))
+plot(TimesI,vH_B_tempI(:,2) - StatesB(:,5))
 subplot(3,1,3)
-plot(Times,vH_B_tempI(:,3) - StatesB(:,6))
+plot(TimesI,vH_B_tempI(:,3) - StatesB(:,6))
 
 % figure
 % subplot(3,1,1)
@@ -432,13 +437,13 @@ plot(Times,vH_B_tempI(:,3) - StatesB(:,6))
 % ------------------------------------------------------------------------
 %%% Jacobi Constant (Analytical)
 % ------------------------------------------------------------------------
-JC_B = zeros(length(Times),1);
+JC_B = zeros(length(TimesI),1);
 mu = uE/(uE + uJ);
 P = 2*pi*sqrt((aE^3)/uJ);
 vNorm = P/(aE*2*pi);
 
-for k = 1:length(Times)
-    th = Times(k)*nE; % rads
+for k = 1:length(TimesI)
+    th = TimesI(k)*nE; % rads
     
 %     %%% Normalized method
 %     rBC = R3(rE0.*(uE/uJ), th); % Barycenter position (JCI)
@@ -493,11 +498,11 @@ end
 clear x y rBC vBC vJC mu r r1 r2 P 
 
 figure
-plot(Times,JC_B,'linewidth',2)
+plot(TimesI,JC_B,'linewidth',2)
 PlotBoi2('Times, sec','Jacobian Constant',16)
 title('Analytical JC')
 figure
-plot(Times,(JC_B-JC_B(1))*100./(JC_B(1)),'linewidth',2)
+plot(TimesI,(JC_B-JC_B(1))*100./(JC_B(1)),'linewidth',2)
 PlotBoi2('Times, sec','Jacobian Constant %Change',16)
 title('Analytical JC %Change')
 
@@ -758,8 +763,8 @@ end
 if rECIplot == 1
 figure
 hold all
-plot(Times,ones(size(Times)).*RE,'--b','linewidth',1.5)
-plot(Times,arrayfun(@(x) norm(rH_ECI(x,:)), 1:length(Times))','m','linewidth',trackWidth)
+plot(TimesI,ones(size(TimesI)).*RE,'--b','linewidth',1.5)
+plot(TimesI,arrayfun(@(x) norm(rH_ECI(x,:)), 1:length(TimesI))','m','linewidth',trackWidth)
 PlotBoi2('Time, sec','Distance to Europa Center, km',16)
 legend('Europa Mean Radius')
 end
@@ -773,37 +778,37 @@ figure
 subplot(3,1,1)
 title('Numerically Calculated Eastern Pos/Vel/Acc')
 hold all
-plot(Times, EastNumericalPos,'.')
-plot([0 Times(end)],[0 0],'--r')
+plot(TimesI, EastNumericalPos,'.')
+plot([0 TimesI(end)],[0 0],'--r')
 PlotBoi2('', 'East Pos, km', 14)
 subplot(3,1,2)
 hold all
-plot(Times(1:end-2), EastNumericalVel(1:end-1),'.')
-plot([0 Times(end)],[0 0],'--r')
+plot(TimesI(1:end-2), EastNumericalVel(1:end-1),'.')
+plot([0 TimesI(end)],[0 0],'--r')
 PlotBoi2('', 'East Vel, km/s', 14)
 subplot(3,1,3)
 hold all
-plot(Times(1:end-3), EastNumericalAcc(1:end-1),'.')
-plot([0 Times(end)],[0 0],'--r')
+plot(TimesI(1:end-3), EastNumericalAcc(1:end-1),'.')
+plot([0 TimesI(end)],[0 0],'--r')
 PlotBoi2('Time, sec', 'East Acc, km/s^2', 14)
 
 %%% Plotting Analytical Acceleration
 figure
 subplot(3,1,1);hold on
 title('Analytically Calculated Eastern Pos/Vel/Acc')
-plot(Times, EastAnalyticalPos,'.')
-plot(Times(1),EastAnalyticalPos(1),'o','markersize',10)
-plot([0 Times(end)],[0 0],'--r')
+plot(TimesI, EastAnalyticalPos,'.')
+plot(TimesI(1),EastAnalyticalPos(1),'o','markersize',10)
+plot([0 TimesI(end)],[0 0],'--r')
 PlotBoi2('', 'East Pos, km', 14)
 subplot(3,1,2);hold on
-plot(Times, EastAnalyticalVel,'.')
-plot(Times(1),EastAnalyticalVel(1),'o','markersize',10)
-plot([0 Times(end)],[0 0],'--r')
+plot(TimesI, EastAnalyticalVel,'.')
+plot(TimesI(1),EastAnalyticalVel(1),'o','markersize',10)
+plot([0 TimesI(end)],[0 0],'--r')
 PlotBoi2('', 'East Vel, km/s', 14)
 subplot(3,1,3);hold on
-plot(Times, EastAnalyticalAcc,'.')
-plot(Times(1),EastAnalyticalAcc(1),'o','markersize',10)
-plot([0 Times(end)],[0 0],'--r')
+plot(TimesI, EastAnalyticalAcc,'.')
+plot(TimesI(1),EastAnalyticalAcc(1),'o','markersize',10)
+plot([0 TimesI(end)],[0 0],'--r')
 PlotBoi2('Time, sec','Eastern Acc, km/s^2',14)
 
 % %%% Plotting Tidal Acceleration
@@ -820,8 +825,8 @@ end
 %%% ECEF Movie
 if runECEFMovie == 1
     figure
-    for i = 1:length(Times) %size(States,1)
-        if rem(i,framespeed) == 0 || i == length(Times)
+    for i = 1:length(TimesI) %size(States,1)
+        if rem(i,framespeed) == 0 || i == length(TimesI)
             clf
             hold all
             %%% Plotting Europa motion
@@ -866,8 +871,8 @@ end
 %%% ECI Movie
 if runECIMovie == 1
     figure
-    for i = 1:length(Times) %size(States,1)
-        if rem(i,framespeed) == 0 || i == length(Times)
+    for i = 1:length(TimesI) %size(States,1)
+        if rem(i,framespeed) == 0 || i == length(TimesI)
             clf
             hold all
             %%% Plotting Europa motion
@@ -972,9 +977,9 @@ fprintf('===== NUMERICAL RESULTS =====\n')
 % ------------------------------------------------------------------------
 %%% Printing Impact Time
 % ------------------------------------------------------------------------
-if Times(end) ~= tf
-    fprintf('Time of Flight:    %1.4f sec\n', Times(end))
-elseif Times(end) == tf
+if TimesI(end) ~= tf
+    fprintf('Time of Flight:    %1.4f sec\n', TimesI(end))
+elseif TimesI(end) == tf
     warning off backtrace
     warning('No Impact in Simulation')
 else
