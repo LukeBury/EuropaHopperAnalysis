@@ -41,28 +41,28 @@ time = ti:dt:tf;
 
 %%% Jupiter Parameters
 uJ = 126672520; % km^3 / s^2
-J_pos = [0, 0, 0]; % km
-J_radius = 69911; % km
+rJ0 = [0, 0, 0]; % km
+RJ = 69911; % km
 
 %%% Europa Parameters
-E_radius = 1560.8; % km
-E_a = 671100; % km
+RE = 1560.8; % km
+aE = 671100; % km
 uE = 3203.413216; % km^3 / s^2
-nE = sqrt(uJ / (E_a^3)); % rad/s
+nE = sqrt(uJ / (aE^3)); % rad/s
 % Circular Velocity
-vE = sqrt(uJ/E_a); % km/s
+vE = sqrt(uJ/aE); % km/s
 wE = [0; 0; nE]; % Rot. velocity (tidally locked)
 
 %%% Intial Europa State
 E_theta0 = 0*(pi/180); % Initial position of Europa about Jupiter from +x, rads
-rE0_JCI = R3([E_a, 0, 0],E_theta0); % km
+rE0_JCI = R3([aE, 0, 0],E_theta0); % km
 vE0_JCI = R3([0, vE, 0],E_theta0); % km/s
 
 %%% Initial Hopper State
 % Surface Position (latitude / longitude)
 lat1 = 0; % deg (-90:90)
 lon1 = -45; % deg (-180:180)
-[rH0_ECEF] = latlon2surfECEF(lat1, lon1, E_radius); % km
+[rH0_ECEF] = latlon2surfECEF(lat1, lon1, RE); % km
 rH0_ECI = R3(rH0_ECEF,E_theta0); % km
 rH0_JCI = rH0_ECI + rE0_JCI; % km
 
@@ -91,7 +91,7 @@ optionsI = odeset('Events',@impactEvent_CR3BP,'RelTol',tol,'AbsTol',tol);
 X0_JCI = [rH0_JCI vH0_JCI]; % km km/s
 
 %%% Propagating the State
-[Times,StatesI] = ode45(@EH_NumIntegrator_CR3BP,time,X0_JCI,optionsI,E_radius,uE,uJ,nE,E_a);
+[Times,StatesI] = ode45(@EH_NumIntegrator_CR3BP,time,X0_JCI,optionsI,RE,uE,uJ,nE,aE,E_theta0);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -141,7 +141,7 @@ dKE = KEf - KE0; % J/kg .... m^2/s^2
 % ------------------------------------------------------------------------
 %%% Angle change and surface distance traveled in ECEF
 AngChange = atan2(norm(cross(rH_ECEF(1,:),rH_ECEF(end,:))),dot(rH_ECEF(1,:),rH_ECEF(end,:)))*180/pi; % deg
-Traveled = (AngChange*pi/180)*E_radius*1000; % m
+Traveled = (AngChange*pi/180)*RE*1000; % m
 
 %%% Finding direction traveled
 [lat2, lon2] = ECEF2latlon(rH_ECEF(end,:)); % rad
@@ -189,7 +189,7 @@ for k = 1:length(Times)
     
 end
 clear vH_B
-
+fprintf('Clear some of these vars after testing\n')
 vAnalytical = cumtrapz(Times, aH_ECEF_I(:,:)) + vH0_ECEF;
 rAnalytical = cumtrapz(Times, vAnalytical(:,:)) + rH0_ECEF;
 
@@ -267,8 +267,8 @@ aEJ0_JCI = (-uJ/(norm(rE0_JCI)^3))*rE0_JCI; % Europa --> Jupiter, km/s^2
 JC_N = zeros(length(Times),1);
 % rBC = rE0.*(uE/uJ);
 mu = uE/(uE + uJ);
-P = 2*pi*sqrt((E_a^3)/uJ);
-vNorm = P/(E_a*2*pi);
+P = 2*pi*sqrt((aE^3)/uJ);
+vNorm = P/(aE*2*pi);
 
 for k = 1:length(Times)
     th = Times(k)*nE; % rads
@@ -325,7 +325,7 @@ optionsB = odeset('Events',@impactEvent_Body_CR3BP,'RelTol',tol,'AbsTol',tol);
 X0_ECEF = [rH0_ECEF vH0_ECEF]; % km, km/s
 
 %%% Propagating the State
-[TimesB,StatesB] = ode45(@EH_Body_NumIntegrator_CR3BP,time,X0_ECEF,optionsB,E_radius,uE,uJ,nE,E_a);
+[TimesB,StatesB] = ode45(@EH_Body_NumIntegrator_CR3BP,time,X0_ECEF,optionsB,RE,uE,uJ,nE,aE,E_theta0);
 
 % rE_JCI_tempB = zeros(length(Times),3);
 % rH_ECI_tempB = zeros(length(Times),3);
@@ -342,7 +342,7 @@ for k = 1:length(TimesB)
     vH_ECEF_tempB = StatesB(k,4:6); % Hopper Velocity, km/s
     
     %%% Creating Europa Position (JCI)
-    rE_JCI_tempB = [E_a,0 0]; % km
+    rE_JCI_tempB = [aE,0 0]; % km
     rE_JCI_tempB = R3(rE_JCI_tempB,rotAngles(k)); % km
     
     %%% Creating Hopper Position (ECI)
@@ -434,8 +434,8 @@ plot(Times,vH_B_tempI(:,3) - StatesB(:,6))
 % ------------------------------------------------------------------------
 JC_B = zeros(length(Times),1);
 mu = uE/(uE + uJ);
-P = 2*pi*sqrt((E_a^3)/uJ);
-vNorm = P/(E_a*2*pi);
+P = 2*pi*sqrt((aE^3)/uJ);
+vNorm = P/(aE*2*pi);
 
 for k = 1:length(Times)
     th = Times(k)*nE; % rads
@@ -523,8 +523,8 @@ title('Analytical JC %Change')
 % contour(X,Y,Z)
 
 rBC_Test = rE0_JCI.*(uE/uJ);
-x = linspace(E_a - 1.3*E_radius, E_a + 1.3*E_radius, 100);
-y = linspace(-1.3*E_radius, 1.3*E_radius, 100);
+x = linspace(aE - 1.3*RE, aE + 1.3*RE, 100);
+y = linspace(-1.3*RE, 1.3*RE, 100);
 z = zeros(length(x),length(x));
 r1 = zeros(length(x),length(x));
 r2 = zeros(length(x),length(x));
@@ -604,22 +604,22 @@ if ECEFplot == 1
     
     %%% Plotting Europa equator
     th = 0:.01:2*pi;
-    x = E_radius * cos(th);
-    y = E_radius * sin(th);
+    x = RE * cos(th);
+    y = RE * sin(th);
     plot(x, y,'b','linewidth',lineWidth);
 
     %%% Coloring in Europa (2D)
     n = 5000;
     THETA=linspace(0,2*pi,n);
-    RHO=ones(1,n)*(E_radius);
+    RHO=ones(1,n)*(RE);
     [X,Y] = pol2cart(THETA,RHO);
     fill(X, Y, 'c');
 
     %%% Plotting Europa Surface (3D)
-    bodySurface3(E_radius, [0 0 0], [0 1 1]);
+    bodySurface3(RE, [0 0 0], [0 1 1]);
 
     %%% Plotting Europa-Jupiter Vector
-    quiver3(0,0,0,-2*E_radius,0,0,...
+    quiver3(0,0,0,-2*RE,0,0,...
         'linewidth',2,'color',[1 .5 0]);
 
     %%% Plotting Intial Velocity
@@ -628,9 +628,9 @@ if ECEFplot == 1
         sc1*(vH0_ECEF(1)),sc1*(vH0_ECEF(2)),sc1*(vH0_ECEF(3)),...
         'linewidth',2,'color',[0 0 0])
 
-    xlim([-E_radius*scale1 E_radius*scale1])
-    ylim([-E_radius*scale1 E_radius*scale1])
-    zlim([-E_radius*scale1 E_radius*scale1])
+    xlim([-RE*scale1 RE*scale1])
+    ylim([-RE*scale1 RE*scale1])
+    zlim([-RE*scale1 RE*scale1])
     
     %%% Frame
     title('ECEF')
@@ -652,27 +652,27 @@ if ECIplot == 1
 
     %%% Plotting Europa equator
     th = 0:.01:2*pi;
-    x = E_radius * cos(th) + rE0_JCI(1);
-    y = E_radius * sin(th) + rE0_JCI(2);
+    x = RE * cos(th) + rE0_JCI(1);
+    y = RE * sin(th) + rE0_JCI(2);
     plot(x, y,'b','linewidth',lineWidth);
 
     %%% Coloring in Europa (2D)
     n = 5000;
     THETA=linspace(0,2*pi,n);
-    RHO=ones(1,n)*(E_radius);
+    RHO=ones(1,n)*(RE);
     [X,Y] = pol2cart(THETA,RHO);
     fill(X + rE0_JCI(1),Y+ rE0_JCI(2),'c');
 
     %%% Plotting Europa Surface (3D)
-    bodySurface3(E_radius, [0 0 0], [0 1 1]);
+    bodySurface3(RE, [0 0 0], [0 1 1]);
 
     %%% Plotting Initial Europa-Jupiter Vector
-    quiver3(0,0,0,-2*E_radius,0,0,...
+    quiver3(0,0,0,-2*RE,0,0,...
         'linewidth',2,'color',[.7 .7 .7])
     
     %%% Plotting Final Europa-Jupiter Vector
     E2Jhat_f = -rE_JCI(end,:)./norm(rE_JCI(end,:));
-    jpECI = quiver3(0, 0, 0, 2*E_radius*E2Jhat_f(end,1), 2*E_radius*E2Jhat_f(end,2), 2*E_radius*E2Jhat_f(end,3),...
+    jpECI = quiver3(0, 0, 0, 2*RE*E2Jhat_f(end,1), 2*RE*E2Jhat_f(end,2), 2*RE*E2Jhat_f(end,3),...
         'linewidth',2,'color',[1 .5 0]);
     legend([jpECI], 'Jupiter-Pointing (Final)')
     
@@ -683,9 +683,9 @@ if ECIplot == 1
         'linewidth',2,'color',[0 0 0])
     
     %%% To Focus on Europa
-    xlim([-E_radius*scale1 E_radius*scale1])
-    ylim([-E_radius*scale1 E_radius*scale1])
-    zlim([-E_radius*scale1 E_radius*scale1])
+    xlim([-RE*scale1 RE*scale1])
+    ylim([-RE*scale1 RE*scale1])
+    zlim([-RE*scale1 RE*scale1])
 %     xlim([min(rECI_Hopper(:,1))-.1 max(rECI_Hopper(:,1))+.1])
 %     ylim([min(rECI_Hopper(:,2))-.1 max(rECI_Hopper(:,2))+.1])
 %     zlim([-.1 .1])
@@ -716,35 +716,35 @@ if JCIplot == 1
 
     %%% Plotting Europa equator
     th = 0:.01:2*pi;
-    x = E_radius * cos(th) + rEf_JCI(1);
-    y = E_radius * sin(th) + rEf_JCI(2);
+    x = RE * cos(th) + rEf_JCI(1);
+    y = RE * sin(th) + rEf_JCI(2);
     plot(x, y,'b','linewidth',lineWidth);
 
     %%% Coloring in Europa (2D)
     n = 5000;
     THETA=linspace(0,2*pi,n);
-    RHO=ones(1,n)*(E_radius);
+    RHO=ones(1,n)*(RE);
     [X,Y] = pol2cart(THETA,RHO);
     fill(X + rEf_JCI(1),Y+ rEf_JCI(2),'c');
 
     %%% Plotting Europa-Jupiter Vector
     EJ_hat = -[rEf_JCI(1),rEf_JCI(2),rEf_JCI(3)]/...
         norm(rEf_JCI);
-    scale = 2*E_radius;
+    scale = 2*RE;
     quiver3(rEf_JCI(1),rEf_JCI(2),rEf_JCI(3),...
         scale*EJ_hat(1),scale*EJ_hat(2),scale*EJ_hat(3),...
         'linewidth',2,'color',[1 .5 0])
 
     %%% Plotting Jupiter Equator
     th = 0:.001:2*pi;
-    x = J_radius * cos(th);
-    y = J_radius * sin(th);
+    x = RJ * cos(th);
+    y = RJ * sin(th);
     plot(x, y,'k','linewidth',lineWidth);
 
     %%% Coloring in Jupiter (2D)
     n = 5000;
     THETA=linspace(0,2*pi,n);
-    RHO=ones(1,n)*(J_radius);
+    RHO=ones(1,n)*(RJ);
     [X,Y] = pol2cart(THETA,RHO);
     fill(X,Y,[1 .5 0]);
     
@@ -758,7 +758,7 @@ end
 if rECIplot == 1
 figure
 hold all
-plot(Times,ones(size(Times)).*E_radius,'--b','linewidth',1.5)
+plot(Times,ones(size(Times)).*RE,'--b','linewidth',1.5)
 plot(Times,arrayfun(@(x) norm(rH_ECI(x,:)), 1:length(Times))','m','linewidth',trackWidth)
 PlotBoi2('Time, sec','Distance to Europa Center, km',16)
 legend('Europa Mean Radius')
@@ -830,9 +830,9 @@ if runECEFMovie == 1
             PlotBoi3('X, km','Y, km','Z, km',16)
             grid on
             axis square
-            xlim([-E_radius*scale2 E_radius*scale2])
-            ylim([-E_radius*scale2 E_radius*scale2])
-            zlim([-E_radius*scale2 E_radius*scale2])
+            xlim([-RE*scale2 RE*scale2])
+            ylim([-RE*scale2 RE*scale2])
+            zlim([-RE*scale2 RE*scale2])
 %             xlim([min(rECEF_Hopper(:,1)) max(rECEF_Hopper(:,1))])
 %             ylim([min(rECEF_Hopper(:,2)) max(rECEF_Hopper(:,2))])
 %             zlim([-.01 .01])
@@ -842,16 +842,16 @@ if runECEFMovie == 1
 
             %%% Europa Equator 
             th = 0:.01:2*pi;
-            x = E_radius * cos(th);
-            y = E_radius * sin(th);
+            x = RE * cos(th);
+            y = RE * sin(th);
             p1 = plot(x, y,'b','linewidth',lineWidth);
 
             %%% Plotting Europa Surface (3D)
-            bodySurface3(E_radius, [0 0 0], [0 1 1]);
+            bodySurface3(RE, [0 0 0], [0 1 1]);
 
 
             %%% Plotting Initial Europa-Jupiter Vector
-            quiver3(0,0,0,-2*E_radius,0,0,...
+            quiver3(0,0,0,-2*RE,0,0,...
                 'linewidth',2,'color',[.7 .7 .7])
             
             %%% View(azimuth,elevation)
@@ -876,30 +876,30 @@ if runECIMovie == 1
             PlotBoi3('X, km','Y, km','Z, km',16)
             grid on
             axis square
-            xlim([-E_radius*scale2 E_radius*scale2])
-            ylim([-E_radius*scale2 E_radius*scale2])
-            zlim([-E_radius*scale2 E_radius*scale2])
+            xlim([-RE*scale2 RE*scale2])
+            ylim([-RE*scale2 RE*scale2])
+            zlim([-RE*scale2 RE*scale2])
 
             %%% Plotting Past
             plot3(rH_ECI(1:i-1,1),rH_ECI(1:i-1,2),rH_ECI(1:i-1,3),'-m')
 
             %%% Europa Equator 
             th = 0:.01:2*pi;
-            x = E_radius * cos(th);
-            y = E_radius * sin(th);
+            x = RE * cos(th);
+            y = RE * sin(th);
             p1 = plot(x, y,'b','linewidth',lineWidth);
 
             %%% Plotting Europa Surface (3D)
-            bodySurface3(E_radius, [0 0 0], [0 1 1]);
+            bodySurface3(RE, [0 0 0], [0 1 1]);
 
 
             %%% Plotting Initial Europa-Jupiter Vector
-            quiver3(0,0,0,-2*E_radius,0,0,...
+            quiver3(0,0,0,-2*RE,0,0,...
                 'linewidth',2,'color',[.7 .7 .7])
 
             %%% Plotting Final Europa-Jupiter Vector
             E2Jhat_f = -rE_JCI(i,:)./norm(rE_JCI(i,:));
-            quiver3(0, 0, 0, 2*E_radius*E2Jhat_f(1), 2*E_radius*E2Jhat_f(2), 2*E_radius*E2Jhat_f(3),...
+            quiver3(0, 0, 0, 2*RE*E2Jhat_f(1), 2*RE*E2Jhat_f(2), 2*RE*E2Jhat_f(3),...
                 'linewidth',2,'color',[1 .5 0]);
             
             %%% View(azimuth,elevation)
@@ -997,7 +997,6 @@ fprintf('Azimuth:           %3.2f°\n',az)
 % ------------------------------------------------------------------------
 fprintf('\n\n\n***************************\n')
 fprintf('ASSUMPTIONS:\n')
-fprintf('-Europa starts on +X JCI axis (CURRENTLY NECESSARY - I think from lat/lon fnc)\n')
 fprintf('-Europa and Jupiter are point masses at centers\n')
 fprintf('-Europa is spherical\n')
 fprintf('-Europa in circular orbit\n')

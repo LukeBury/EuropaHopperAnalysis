@@ -1,7 +1,7 @@
 % ------------------------------------------------------------------------
 %%% Body Frame Numerical Integrator
 % ------------------------------------------------------------------------
-function [ dY ] = EH_Body_NumIntegrator_CR3BP(t,Y,E_radius,uE,uJ,nE,E_a)
+function [ dY ] = EH_Body_NumIntegrator_CR3BP(t,Y,RE,uE,uJ,nE,aE,E_theta0)
 dY = zeros(6,1);
 
 %%% Unpack the Hopper state vector (ECEF)
@@ -10,7 +10,7 @@ dyH = Y(4:6); % Hopper Velocity, km/s
 
 %%% Creating Europa Position (JCI)
 ta = nE*t; % rads
-rE_JCI = [E_a; 0; 0]; % km
+rE_JCI = R3([aE; 0; 0],E_theta0); % km
 rE_JCI = R3(rE_JCI,ta); % km
 
 %%% Creating Hopper Position (ECI)
