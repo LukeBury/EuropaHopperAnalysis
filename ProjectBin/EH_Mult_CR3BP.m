@@ -25,6 +25,7 @@ wE = [0; 0; nE]; % Rot. velocity (tidally locked)
 %%% Intial Europa State (Jupiter-Centric)
 rE0 = [E_a, 0, 0]; % km
 vE0 = [0, vE, 0]; % km
+E_theta0 = 0*(pi/180); % Initial position of Europa about Jupiter from +x, rads
 
 %%% Initial Hopper State (Jupiter-Centric) 
 % Surface Position (latitude / longitude)
@@ -49,7 +50,7 @@ tol = 1E-12;
 options = odeset('Events',@impactEvent_CR3BP,'RelTol',tol,'AbsTol',tol);
 
 %%% Propagating the STate
-[Times,States] = ode45(@EH_NumIntegrator_CR3BP,time,X0,options,E_radius,uE,uJ,nE,E_a);
+[Times,States] = ode45(@EH_NumIntegrator_CR3BP,time,X0,options,E_radius,uE,uJ,nE,E_a,E_theta0);
 T_impact = Times(end);
 
 % ------------------------------------------------------------------------
