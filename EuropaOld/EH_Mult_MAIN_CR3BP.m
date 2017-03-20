@@ -1,7 +1,7 @@
 clear
 clc
 close all
-addpath('ProjectBin')
+addpath('../ProjectBin')
 tic
 
 %%% Plot results?
@@ -9,7 +9,7 @@ plotsOn = 1; % 0 = no, 1 = yes
 
 %%% Set initial parameters
 vmag = 0.015; % km/s, magnitude of velocity of radial hop
-ddeg = 10; % deg, degree step size
+ddeg = 5; % deg, degree step size
 latRange = [-90, 90]; % deg, range of latitudes to analyze 
 lonRange = [-180; 180]; % deg, range of longitudes to analyze
 %0.015

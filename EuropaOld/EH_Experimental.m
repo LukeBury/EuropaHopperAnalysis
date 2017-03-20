@@ -1,7 +1,7 @@
 clear
 clc
 close all
-addpath('ProjectBin')
+addpath('../ProjectBin')
 
 % ------------------------------------------------------------------------
 %%% Plot Options
@@ -39,15 +39,15 @@ vE0_JCI = R3([0, vE, 0],E_theta0); % km
 % Surface Position (latitude / longitude)
 lat1 = 0; % deg (-90:90)
 lon1 = 0; % deg (-180:180)
-% [rH0_ECEF] = latlon2surfECEF(lat1, lon1, RE); % km
-rH0_ECEF = [RE+500, 0, 0];%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% for orbit
+[rH0_ECEF] = latlon2surfECEF(lat1, lon1, RE); % km
+% rH0_ECEF = [RE+500, 0, 0];%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% for orbit
 rH0_ECI = R3(rH0_ECEF,E_theta0); % km
 rH0_JCI = rH0_ECI + rE0_JCI; % km
 
 %%% Radial Velocity (Europa relative)
 v_mag = .015; % km/s
-% vH0_ECEF = (rH0_ECEF/norm(rH0_ECEF))*v_mag;
-vH0_ECEF = [0, sqrt(uE/(RE+500)),0] - cross(wE,rH0_ECI); %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% for orbit
+vH0_ECEF = (rH0_ECEF/norm(rH0_ECEF))*v_mag;
+% vH0_ECEF = [0, sqrt(uE/(RE+500)),0] - cross(wE,rH0_ECI); %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% for orbit
 
 %%% Creating ECI and JCI Initial Hopper Velocity
 vH0_ECI = R3(vH0_ECEF,E_theta0) + cross(wE,rH0_ECI); % km/s
